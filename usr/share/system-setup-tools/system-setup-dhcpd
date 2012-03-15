@@ -1,0 +1,152 @@
+#! /bin/bash
+#
+# Writen by Denis Salmanovich
+#
+
+[ -f /etc/denix-colors ] && . /etc/denix-colors
+
+# Check if script runs under root
+if ! [ "$(whoami)" = "root" ]; then
+    echo "You have to run me with root user priveleges!"
+    exit 1
+fi
+
+# Check if named is installed
+if ! [ -f /var/lib/system-setup-tools/named ]; then
+    $color_Red
+    echo "The named server is not installed on your system!"
+    $color_Cyan
+    echo -n "Do you want to install it now? (Y/n)?"; read USERINPUT
+    $color_Off
+    if [ "${USERINPUT}" = "" -o "${USERINPUT}" = "y" -o "${USERINPUT}" = "Y" ]; then
+	/usr/bin/system-setup-named
+    fi
+fi
+
+# Install required packages
+pk="dhcp"
+for i in $pk; do
+	if ! rpm -q $i >/dev/null 2>&1; then
+		required_packages="$required_packages $i"
+	fi
+done
+
+if ! [ "$required_packages" = "" ]; then
+	$color_Purple
+	echo "Some packages not found on your system. Trying to download and install..."
+	if ! yum -y install $required_packages; then
+	    $color_BRed
+	    echo "Download failed! Check internet connection and try again!"
+	    $color_Off
+	    exit 1
+	else
+	    $color_Green
+	    echo "Installation success!"
+	    $color_Off
+	fi
+fi
+
+# Ask for network device
+while [ "${IFACE}" = "" ]; do
+    $color_Cyan
+    echo -n "What is your primary network interface [eth0]?"; read IFACE
+    $color_Off
+    if [ "${IFACE}" = "" ]; then
+	IFACE="eth0"
+    fi
+    if ! ifconfig ${IFACE} >/dev/null 2>&1; then
+	$color_Red
+	echo "Error fetching network device: ${IFACE}"
+	$color_Off
+	IFACE=""
+    fi
+    if ifconfig ${IFACE} | head -2 | tail -1 | grep "BROADCAST" >/dev/null 2>&1; then
+	$color_Red
+	echo "Error fetching IP address for device: ${IFACE}"
+	$color_Off
+	IFACE=""
+    fi
+done
+
+# Discovery system configuration
+NBTNAME=`hostname | cut -d. -f1`
+IPADDR=`ifconfig ${IFACE} | head -2 | tail -1 | awk '{print $2}' | cut -d":" -f2`
+NETMASK=`ifconfig ${IFACE} | head -2 | tail -1 | awk '{print $4}' | cut -d":" -f2`
+NETWORK=`echo ${IPADDR} | awk -F. '{print $1"."$2"."$3".0"}'`
+DOMAINNAME=`hostname`
+ARPA=`echo ${IPADDR} | awk -F. '{print $3"."$2"."$1".in-addr.arpa"}'`
+MASK=`ipcalc ${NETWORK} ${NETMASK} -p | cut -d= -f2`
+RANGE_FROM=`echo ${IPADDR} | awk -F. '{print $1"."$2"."$3".1"}'`
+RANGE_TO=`echo ${IPADDR} | awk -F. '{print $1"."$2"."$3".220"}'`
+BROADCAST=`ifconfig ${IFACE} | head -2 | tail -1 | awk '{print $3}' | cut -d":" -f2`
+GATEWAY=`route -n | grep "UG" | grep ${IFACE} | awk '{print $2}'`
+DHCPD_CONFIG="/etc/dhcp/dhcpd.conf"
+
+if [ "${GATEWAY}" = "" ]; then
+    GATEWAY=${IPADDR}
+fi
+
+# Stop the services for installation
+service dhcpd stop >/dev/null 2>&1
+
+# Check, if configuration file already exists, then backup it
+if [ -f ${DHCPD_CONFIG} ]; then
+    cp ${DHCPD_CONFIG} ${DHCPD_CONFIG}.back.`date +%Y%m%d%H%M`
+fi
+
+cat > ${DHCPD_CONFIG} << EOF
+allow bootp;
+allow booting;
+authoritative;
+
+ddns-update-style      interim;
+ddns-updates           on;
+ignore                 client-updates;
+include                "/etc/rndc.key";
+default-lease-time     21600; # 6 hours
+max-lease-time         43200; # 12 hours
+
+subnet $NETWORK netmask $NETMASK {
+    server-identifier $IPADDR;
+    ddns-domainname "$DOMAINNAME.";
+    ddns-rev-domainname "in-addr.arpa.";
+    next-server $IPADDR;
+    filename "pxelinux.0";
+    range $RANGE_FROM $RANGE_TO;
+    option root-path "$IPADDR:/opt/ltsp/i386";
+    option subnet-mask $NETMASK;
+    option broadcast-address $BROADCAST;
+    option routers $GATEWAY;
+    option domain-name-servers $IPADDR;
+    option netbios-name-servers $IPADDR;
+    option netbios-node-type 8;
+    option domain-name "$DOMAINNAME";
+    option ip-forwarding off;
+
+    zone $DOMAINNAME. {
+		primary $IPADDR;
+		key rndc-key;
+    }
+
+    zone $ARPA. {
+		primary $IPADDR;
+		key rndc-key;
+    }
+}
+EOF
+
+# Enable dhcp daemon
+chkconfig dhcpd on
+
+# Start dhcp server
+service dhcpd start
+
+# Create installation signature
+if ! [ -d /var/lib/system-setup-tools ]; then
+	install -d /var/lib/system-setup-tools
+fi
+echo "Install date: `date`" > /var/lib/system-setup-tools/dhcpd
+
+$color_BGreen
+echo "Setup completed!"
+$color_Off

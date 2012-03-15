@@ -1,0 +1,3 @@
+USER=root
+PROGRAM=/usr/share/system-setup-tools/system-setup-squirrelmail
+SESSION=true

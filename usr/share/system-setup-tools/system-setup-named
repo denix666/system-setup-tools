@@ -1,0 +1,493 @@
+#! /bin/bash
+#
+# Writen by Denis Salmanovich
+#
+
+[ -f /etc/denix-colors ] && . /etc/denix-colors
+
+# Check if script runs under root
+if ! [ "$(whoami)" = "root" ]; then
+    echo "You have to run me with root user priveleges!"
+    exit 1
+fi
+
+# Install required packages
+pk="bind"
+for i in $pk; do
+	if ! rpm -q $i >/dev/null 2>&1; then
+		required_packages="$required_packages $i"
+	fi
+done
+
+if ! [ "$required_packages" = "" ]; then
+	$color_Purple
+	echo "Some packages not found on your system. Trying to download and install..."
+	if ! yum -y install $required_packages; then
+	    $color_BRed
+	    echo "Download failed! Check internet connection and try again!"
+	    $color_Off
+	    exit 1
+	else
+	    $color_Green
+	    echo "Installation success!"
+	    $color_Off
+	fi
+fi
+
+# Ask for network device
+while [ "${IFACE}" = "" ]; do
+	echo -n "What is your primary network interface [eth0]?"; read IFACE
+	if [ "${IFACE}" = "" ]; then
+		IFACE="eth0"
+	fi
+	if ! ifconfig ${IFACE} >/dev/null 2>&1; then
+		echo "Error fetching network device: ${IFACE}"
+		IFACE=""
+	fi
+	if ifconfig ${IFACE} | head -2 | tail -1 | grep "BROADCAST" >/dev/null 2>&1; then
+		echo "Error fetching IP address for device: ${IFACE}"
+		IFACE=""
+	fi
+done
+
+# Ask for DNS forwarders
+echo -n "Do you want to setup DNS forwarders [y/N]?"; read USERINPUT
+if [ "${USERINPUT}" = "y" -o "${USERINPUT}" = "Y" ]; then
+    while [ "${FORWARDER_DNS1}" = "" ]; do
+	echo -n "Enter the first DNS forwarder: "; read DNS1
+	echo -n "Checking DNS server <$DNS1>... "
+	if ! ping -c1 $DNS1 >/dev/null 2>&1; then
+	    echo "connection failed!"
+	    echo "The DNS <$DNS1> is not responding! Please check your input and try again."
+	    FORWARDER_DNS1=""
+	else
+	    echo "ok"
+	    FORWARDER_DNS1=$DNS1
+	fi
+    done
+    while [ "${FORWARDER_DNS2}" = "" ]; do
+	echo -n "Enter the second DNS forwarder: "; read DNS2
+	echo -n "Checking DNS server <$DNS2>... "
+	if ! ping -c1 $DNS2 >/dev/null 2>&1; then
+	    echo "connection failed!"
+	    echo "The DNS <$DNS2> is not responding! Please check your input and try again."
+	    FORWARDER_DNS2=""
+	else
+	    echo "ok"
+	    FORWARDER_DNS2=$DNS2
+	fi
+    done
+    FORWARDERS="forwarders { $FORWARDER_DNS1; $FORWARDER_DNS2; };"
+else
+    FORWARDERS=""
+fi
+
+# Discovery system configuration
+IPADDR=`ifconfig ${IFACE} | head -2 | tail -1 | awk '{print $2}' | cut -d":" -f2`
+NETMASK=`ifconfig ${IFACE} | head -2 | tail -1 | awk '{print $4}' | cut -d":" -f2`
+NETWORK=`echo ${IPADDR} | awk -F. '{print $1"."$2"."$3".0"}'`
+DOMAINNAME=`hostname`
+ARPA=`echo ${IPADDR} | awk -F. '{print $3"."$2"."$1".in-addr.arpa"}'`
+LAST_SEG=`echo ${IPADDR} | cut -d. -f4`
+MASK=`ipcalc ${NETWORK} ${NETMASK} -p | cut -d= -f2`
+
+
+# Stop the service for installation
+service named stop >/dev/null 2>&1
+
+# Backup old configuration file
+if [ -f /etc/named.conf ]; then
+	mv /etc/named.conf /etc/named.conf.back.`date +%Y%m%d%H%M`
+fi
+
+
+# Creating new configuration file
+cat > /etc/named.conf << EOF
+options {
+	recursion yes;
+	dnssec-enable yes;
+	dnssec-validation yes;
+	dnssec-lookaside auto;
+	bindkeys-file "/etc/named.iscdlv.key";
+	managed-keys-directory "/var/named/dynamic";
+	directory "/var/named";
+	dump-file "/var/named/data/cache_dump.db";
+	statistics-file "/var/named/data/named_stats.txt";
+	memstatistics-file "/var/named/data/named_mem_stats.txt";
+	$FORWARDERS
+	allow-query {
+		any;
+	};
+};
+
+include "/etc/rndc.key";
+
+controls {
+	inet * allow { 127.0.0.1; ${IPADDR}; } keys { rndc-key; };
+};
+
+logging {
+	channel default_debug {
+		file "data/named.run";
+		severity dynamic;
+	};
+};
+
+view "internal" {
+	match-clients {
+		${NETWORK}/${MASK};
+	};
+
+	zone "." IN {
+		type hint;
+		file "named.ca";
+	};
+
+	include "/etc/named.rfc1912.zones";
+	include "/etc/named.root.key";
+	include "masters/internal.zones";
+	include "slaves/internal.zones";
+	include "reverse/internal.zones";
+};
+
+view "external" {
+	match-clients {
+		any;
+		localhost;
+	};
+
+	zone "." IN {
+		type hint;
+		file "named.ca";
+	};
+
+	include "/etc/named.rfc1912.zones";
+	include "/etc/named.root.key";
+	include "masters/external.zones";
+	include "slaves/external.zones";
+	include "reverse/external.zones";
+};
+EOF
+
+chown root:named /etc/named.conf
+chmod 640 /etc/named.conf
+
+# Create rfc1912 zones
+cat > /etc/named.rfc1912.zones << EOF
+zone "localhost.localdomain" IN {
+    type master;
+    file "named.localhost";
+    allow-update { none; };
+};
+    
+zone "localhost" IN {
+    type master;
+    file "named.localhost";
+    allow-update { none; };
+};
+
+zone "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa" IN {
+    type master;
+    file "named.loopback";
+    allow-update { none; };
+};
+    
+zone "1.0.0.127.in-addr.arpa" IN {
+    type master;
+    file "named.loopback";
+    allow-update { none; };
+};
+
+zone "0.in-addr.arpa" IN {
+    type master;
+    file "named.empty";
+    allow-update { none; };
+};
+EOF
+
+chown root:named /etc/named.rfc1912.zones
+chmod 640 /etc/named.rfc1912.zones
+
+# Backup old named database
+if [ -e /var/named ]; then
+	mv -f /var/named /var/named.back.`date +%Y%m%d%H%M`
+fi
+
+# Install new database directories
+install -m 770 -d /var/named/{masters,reverse,slaves,data,dynamic}
+chown root:named /var/named
+
+install -m 770 -d /var/named/masters/{internal,external}
+chown -R named:named /var/named/masters
+install -m 770 -d /var/named/reverse/{internal,external}
+chown -R named:named /var/named/reverse
+install -m 770 -d /var/named/slaves/{internal,external}
+chown -R named:named /var/named/slaves
+chown -R named:named /var/named/data
+chown -R named:named /var/named/dynamic
+
+# Create zone files
+touch /var/named/reverse/external.zones
+touch /var/named/slaves/internal.zones
+touch /var/named/slaves/external.zones
+
+chown named:named /var/named/reverse/external.zones
+chown named:named /var/named/slaves/internal.zones
+chown named:named /var/named/slaves/external.zones
+
+chmod 640 /var/named/reverse/external.zones
+chmod 640 /var/named/slaves/internal.zones
+chmod 640 /var/named/slaves/external.zones
+
+# Create named.ca
+touch /var/named/named.ca
+chown root:named /var/named/named.ca
+chmod 640 /var/named/named.ca
+cat > /var/named/named.ca << EOF
+; <<>> DiG 9.7.4b1-RedHat-9.7.4-0.3.b1.fc14 <<>> @a.root-servers.net . ns
+; (2 servers found)
+;; global options: +cmd
+;; Got answer:
+;; ->>HEADER<<- opcode: QUERY, status: NOERROR, id: 27954
+;; flags: qr aa rd; QUERY: 1, ANSWER: 13, AUTHORITY: 0, ADDITIONAL: 14
+;; WARNING: recursion requested but not available
+
+;; QUESTION SECTION:
+;.				IN	NS
+
+;; ANSWER SECTION:
+.			518400	IN	NS	d.root-servers.net.
+.			518400	IN	NS	i.root-servers.net.
+.			518400	IN	NS	k.root-servers.net.
+.			518400	IN	NS	g.root-servers.net.
+.			518400	IN	NS	h.root-servers.net.
+.			518400	IN	NS	m.root-servers.net.
+.			518400	IN	NS	b.root-servers.net.
+.			518400	IN	NS	f.root-servers.net.
+.			518400	IN	NS	e.root-servers.net.
+.			518400	IN	NS	a.root-servers.net.
+.			518400	IN	NS	l.root-servers.net.
+.			518400	IN	NS	j.root-servers.net.
+.			518400	IN	NS	c.root-servers.net.
+
+;; ADDITIONAL SECTION:
+d.root-servers.net.	3600000	IN	A	128.8.10.90
+d.root-servers.net.	3600000	IN	AAAA	2001:500:2d::d
+i.root-servers.net.	3600000	IN	A	192.36.148.17
+i.root-servers.net.	3600000	IN	AAAA	2001:7fe::53
+k.root-servers.net.	3600000	IN	A	193.0.14.129
+k.root-servers.net.	3600000	IN	AAAA	2001:7fd::1
+g.root-servers.net.	3600000	IN	A	192.112.36.4
+h.root-servers.net.	3600000	IN	A	128.63.2.53
+h.root-servers.net.	3600000	IN	AAAA	2001:500:1::803f:235
+m.root-servers.net.	3600000	IN	A	202.12.27.33
+m.root-servers.net.	3600000	IN	AAAA	2001:dc3::35
+b.root-servers.net.	3600000	IN	A	192.228.79.201
+f.root-servers.net.	3600000	IN	A	192.5.5.241
+e.root-servers.net.	3600000	IN	A	192.203.230.10
+
+;; Query time: 47 msec
+;; SERVER: 198.41.0.4#53(198.41.0.4)
+;; WHEN: Sat Nov  5 15:23:25 2011
+;; MSG SIZE  rcvd: 512
+EOF
+
+# Create named.localhost
+cat > /var/named/named.localhost << EOF
+\$TTL 1D
+@	IN SOA	@ rname.invalid. (
+					0	; serial
+					1D	; refresh
+					1H	; retry
+					1W	; expire
+					3H )	; minimum
+	NS	@
+	A	127.0.0.1
+	AAAA	::1
+EOF
+chown root:named /var/named/named.localhost
+chmod 640 /var/named/named.localhost
+
+# Create named.loopback
+cat > /var/named/named.loopback << EOF
+\$TTL 1D
+@	IN SOA	@ rname.invalid. (
+					0	; serial
+					1D	; refresh
+					1H	; retry
+					1W	; expire
+					3H )	; minimum
+	NS	@
+	A	127.0.0.1
+	AAAA	::1
+	PTR	localhost.
+EOF
+chown root:named /var/named/named.loopback
+chmod 640 /var/named/named.loopback
+
+# Create named.empty
+cat > /var/named/named.empty << EOF
+\$TTL 3H
+@	IN SOA	@ rname.invalid. (
+					0	; serial
+					1D	; refresh
+					1H	; retry
+					1W	; expire
+					3H )	; minimum
+	NS	@
+	A	127.0.0.1
+	AAAA	::1
+EOF
+chown root:named /var/named/named.empty
+chmod 640 /var/named/named.empty
+
+cat > /var/named/masters/internal.zones << EOF
+zone "${DOMAINNAME}" IN {
+    type master;
+    file "masters/internal/${DOMAINNAME}";
+    allow-update { key rndc-key; };
+    allow-transfer { none; };
+};
+EOF
+chown named:named /var/named/masters/internal.zones
+chmod 640 /var/named/masters/internal.zones
+
+cat > /var/named/masters/internal/${DOMAINNAME} << EOF
+\$ORIGIN .
+\$TTL 300	; 5 minutes
+${DOMAINNAME}		IN SOA	ns.${DOMAINNAME}. hostmaster.${DOMAINNAME}. (
+				1          ; serial
+                                300        ; refresh (5 minutes)
+                                300        ; retry (5 minutes)
+                                300        ; expire (5 minutes)
+                                300        ; minimum (5 minutes)
+                                )
+                        NS      ns.${DOMAINNAME}.
+                        A       ${IPADDR}
+                        MX      10 ${DOMAINNAME}.
+\$ORIGIN ${DOMAINNAME}.
+ns                      A       ${IPADDR}
+mail			A	${IPADDR}
+www			CNAME	${DOMAINNAME}.
+EOF
+chown named:named /var/named/masters/internal/${DOMAINNAME}
+
+cat > /var/named/masters/external.zones << EOF
+zone "${DOMAINNAME}" IN {
+    type master;
+    file "masters/external/${DOMAINNAME}";
+    allow-update { key rndc-key; };
+    allow-transfer { none; };
+};
+EOF
+chown named:named /var/named/masters/external.zones
+chmod 640 /var/named/masters/external.zones
+
+cat > /var/named/masters/external/${DOMAINNAME} << EOF
+\$ORIGIN .
+\$TTL 300	; 5 minutes
+${DOMAINNAME}		IN SOA	ns.${DOMAINNAME}. hostmaster.${DOMAINNAME}. (
+				1          ; serial
+                                300        ; refresh (5 minutes)
+                                300        ; retry (5 minutes)
+                                300        ; expire (5 minutes)
+                                300        ; minimum (5 minutes)
+                                )
+                        NS      ns.${DOMAINNAME}.
+                        A       ${IPADDR}
+                        MX      10 ${DOMAINNAME}.
+\$ORIGIN ${DOMAINNAME}.
+ns                      A       ${IPADDR}
+mail			A	${IPADDR}
+www			CNAME	${DOMAINNAME}.
+EOF
+chown named:named /var/named/masters/external/${DOMAINNAME}
+
+
+cat > /var/named/reverse/internal.zones << EOF
+zone "${ARPA}" IN {
+    type master;
+    file "reverse/internal/${ARPA}";
+    allow-update { key rndc-key; };
+    allow-transfer { none; };
+};
+EOF
+chown named:named /var/named/reverse/internal.zones
+chmod 640 /var/named/reverse/internal.zones
+
+cat > /var/named/reverse/internal/${ARPA} << EOF
+\$TTL 300        ; 5 minutes
+${ARPA}.		IN SOA  ${DOMAINNAME}. hostmaster.${DOMAINNAME}. (
+                                1          ; serial
+                                3600       ; refresh (1 hour)
+                                1800       ; retry (30 minutes)
+                                604800     ; expire (1 week)
+                                86400      ; minimum (1 day)
+                                )
+                        NS      ${DOMAINNAME}.
+${LAST_SEG}		PTR	${DOMAINNAME}.
+EOF
+chown named:named /var/named/reverse/internal/${ARPA}
+
+cat > /var/named/reverse/external.zones << EOF
+zone "${ARPA}" IN {
+    type master;
+    file "reverse/external/${ARPA}";
+    allow-update { key rndc-key; };
+    allow-transfer { none; };
+};
+EOF
+chown named:named /var/named/reverse/external.zones
+chmod 640 /var/named/reverse/external.zones
+
+cat > /var/named/reverse/external/${ARPA} << EOF
+\$TTL 300        ; 5 minutes
+${ARPA}.		IN SOA  ${DOMAINNAME}. hostmaster.${DOMAINNAME}. (
+                                1          ; serial
+                                3600       ; refresh (1 hour)
+                                1800       ; retry (30 minutes)
+                                604800     ; expire (1 week)
+                                86400      ; minimum (1 day)
+                                )
+                        NS      ${DOMAINNAME}.
+${LAST_SEG}		PTR	${DOMAINNAME}.
+EOF
+chown named:named /var/named/reverse/external/${ARPA}
+
+# Add local dns server to resolv.conf
+if [ "${FORWARDERS}" = "" ]; then
+    cat > /etc/resolv.conf << EOF
+search ${DOMAINNAME}
+nameserver ${IPADDR}
+nameserver 127.0.0.1
+EOF
+else
+    cat > /etc/resolv.conf << EOF
+search ${DOMAINNAME}
+nameserver ${FORWARDER_DNS1}
+nameserver ${FORWARDER_DNS2}
+nameserver ${IPADDR}
+nameserver 127.0.0.1
+EOF
+fi
+
+# Disable IPv6
+echo 'OPTIONS="-4"' > /etc/sysconfig/named
+
+# Enable dns server daemon
+chkconfig named on >/dev/null 2>&1
+
+# Start dns server
+service named start
+
+# Create installation signature
+if ! [ -d /var/lib/system-setup-tools ]; then
+	install -d /var/lib/system-setup-tools
+fi
+echo "Install date: `date`" > /var/lib/system-setup-tools/named
+
+$color_Purple
+echo "Do not forget to open port 53 tcp in your firewall!"
+$color_BGreen
+echo "Setup completed!"
+$color_Off

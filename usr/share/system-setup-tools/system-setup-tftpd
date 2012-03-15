@@ -1,0 +1,111 @@
+#! /bin/bash
+#
+# Writen by Denis Salmanovich
+#
+
+[ -f /etc/denix-colors ] && . /etc/denix-colors
+
+# Check if script runs under root
+if ! [ "$(whoami)" = "root" ]; then
+    echo "You have to run me with root user priveleges!"
+    exit 1
+fi
+
+# Check if dhcp daemon installed
+if ! [ -f /var/lib/system-setup-tools/dhcpd ]; then
+    echo "The dhcp server is not installed on your system!"
+    echo -n "Do you want to install it now? (Y/n)?"; read USERINPUT
+    if [ "${USERINPUT}" = "" -o "${USERINPUT}" = "y" -o "${USERINPUT}" = "Y" ]; then
+	/usr/bin/system-setup-dhcpd
+    fi
+fi
+
+# Install tftp-server and syslinux packages
+pk="tftp-server
+	syslinux
+	xinetd"
+for i in $pk; do
+	if ! rpm -q $i >/dev/null 2>&1; then
+		required_packages="$required_packages $i"
+	fi
+done
+
+if ! [ "$required_packages" = "" ]; then
+    $color_Purple
+    echo "Some packages not found on your system. Trying to download and install..."
+    if ! yum -y install $required_packages; then
+        $color_BRed
+        echo "Download failed! Check internet connection and try again!"
+        $color_Off
+        exit 1
+    else
+        $color_Green
+        echo "Installation success!"
+        $color_Off
+    fi
+fi
+
+# Stop the services for installation
+service xinetd stop >/dev/null 2>&1
+
+# Create directories for tftp daemon
+install -m 755 -d ${tftpboot_path}/{pxelinux.cfg,images,menu-labels}
+
+if [ -f ${syslinux_path}/pxelinux.0 ]; then
+    cp -p ${syslinux_path}/pxelinux.0 ${tftpboot_path}
+fi
+
+if [ -f ${syslinux_path}/memdisk ]; then
+    cp -p ${syslinux_path}/memdisk ${tftpboot_path}
+fi
+
+if [ -f ${syslinux_path}/vesamenu.c32 ]; then
+    cp -p ${syslinux_path}/vesamenu.c32 ${tftpboot_path}
+fi
+
+if [ -f ${syslinux_path}/menu.c32 ]; then
+    cp -p ${syslinux_path}/menu.c32 ${tftpboot_path}
+fi
+
+# Create default configuration file for tftp-server
+cat > ${tftpboot_path}/pxelinux.cfg/default << EOF
+default vesamenu.c32
+#default menu.c32
+prompt 0
+menu title Welcome to Linux world!
+noescape 1
+allowoptions 0
+
+menu color title	1;31;49
+menu color sel		7;37;42
+menu color border	30;44
+menu color pwdheader	31;47
+
+include menu-labels/local-boot.menu
+
+EOF
+
+# Create default menu labels
+cat > ${tftpboot_path}/menu-labels/local-boot.menu << EOF
+label local-boot
+    menu label Boot from local hard drive (hd0,0)
+    localboot 0x80
+
+EOF
+
+# Enable and start services
+chkconfig xinetd on
+chkconfig tftp on
+service xinetd start
+
+# Create installation signature
+if ! [ -d /var/lib/system-setup-tools ]; then
+    install -d /var/lib/system-setup-tools
+fi
+echo "Install date: `date`" > /var/lib/system-setup-tools/tftpd
+
+$color_Purple
+echo "Do not forget to open port 69 udp in your firewall!"
+$color_BGreen
+echo "Setup completed!"
+$color_Off

@@ -1,0 +1,120 @@
+#! /bin/bash
+#
+# Writen by Denis Salmanovich
+#
+
+[ -f /etc/denix-colors ] && . /etc/denix-colors
+
+# Check if script runs under root
+if ! [ "$(whoami)" = "root" ]; then
+    echo "You have to run me with root user priveleges!"
+    exit 1
+fi
+
+# Install proftpd packages
+pk="proftpd"
+for i in $pk; do
+    if ! rpm -q $i >/dev/null 2>&1; then
+	required_packages="$required_packages $i"
+    fi
+done
+
+if ! [ "$required_packages" = "" ]; then
+    $color_Purple
+    echo "Some packages not found on your system. Trying to download and install..."
+    if ! yum -y install $required_packages; then
+        $color_BRed
+        echo "Download failed! Check internet connection and try again!"
+        $color_Off
+        exit 1
+    else
+        $color_Green
+        echo "Installation success!"
+        $color_Off
+    fi
+fi
+
+# Create pub directory for default users
+if ! [ -f /etc/skel/.public_html ]; then
+    install -m 710 -d /etc/skel/.public_html
+fi
+
+# Discovery system configuration
+DOMAINNAME=`hostname`
+
+# Check, if configuration file already exists, then backup it
+if [ -f /etc/proftpd.conf ]; then
+    cp /etc/proftpd.conf /etc/proftpd.conf.back.`date +%Y%m%d%H%M`
+fi
+
+# Make pub directories for existing users
+$color_Green
+for i in `ls -d /home/*`; do
+    if [ -f $i/.bashrc ]; then
+	CUSER=`echo $i | cut -d/ -f3`
+	echo -n "Creating pub directory for user: $CUSER... "
+	install -m 710 -d $i/.public_html
+	chown $CUSER:$CUSER $i/.public_html
+	echo "done."
+    fi
+done
+$color_Off
+
+# Stop the services for installation
+service proftpd stop >/dev/null 2>&1
+
+cat > /etc/proftpd.conf << EOF
+ServerName			"ProFTPD server"
+ServerIdent			off
+ServerAdmin			root@$DOMAINNAME
+ServerType			standalone
+DefaultServer			on
+AccessGrantMsg			"User %u logged in."
+#DisplayConnect			/etc/ftpissue
+#DisplayLogin			/etc/ftpmotd
+#DisplayGoAway			/etc/ftpgoaway
+DeferWelcome			off
+
+DefaultRoot			~/.public_html !adm
+AuthPAMConfig			proftpd
+AuthOrder			mod_auth_pam.c* mod_auth_unix.c
+IdentLookups			off
+UseReverseDNS			off
+Port				21
+Umask				022
+RootLogin			off
+MaxLoginAttempts		3
+AllowRetrieveRestart		on
+AllowStoreRestart		on
+MaxInstances			20
+User				nobody
+Group				nobody
+UseSendfile			no
+ScoreboardFile			/var/run/proftpd.score
+
+<Global>
+  AllowOverwrite		yes
+  <Limit ALL SITE_CHMOD>
+    AllowAll
+  </Limit>
+</Global>
+
+LogFormat			default	"%h %l %u %t \"%r\" %s %b"
+LogFormat			auth	"%v [%P] %h %t \"%r\" %s"
+EOF
+
+# Enable proftpd daemon
+chkconfig proftpd on
+
+# Start proftpd server
+service proftpd start
+
+# Create installation signature
+if ! [ -d /var/lib/system-setup-tools ]; then
+    install -d /var/lib/system-setup-tools
+fi
+echo "Install date: `date`" > /var/lib/system-setup-tools/proftpd
+
+$color_BGreen
+echo "Setup completed!"
+$color_Off

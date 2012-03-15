@@ -1,0 +1,78 @@
+#! /bin/bash
+#
+# Writen by Denis Salmanovich
+#
+
+[ -f /etc/denix-colors ] && . /etc/denix-colors
+
+# Check if script runs under root
+if ! [ "$(whoami)" = "root" ]; then
+    echo "You have to run me with root user priveleges!"
+    exit 1
+fi
+
+# Check if httpd daemon installed
+if ! [ -f /var/lib/system-setup-tools/httpd ]; then
+    echo "The httpd server is not installed on your system!"
+    echo -n "Do you want to install it now? (Y/n)?"; read USERINPUT
+	if [ "${USERINPUT}" = "" -o "${USERINPUT}" = "y" -o "${USERINPUT}" = "Y" ]; then
+		/usr/bin/system-setup-httpd
+	else
+		echo "Setup cannot continue without http server! Exiting."
+		exit 1
+	fi
+fi
+
+# Install required packages
+pk="squirrelmail"
+for i in $pk; do
+	if ! rpm -q $i >/dev/null 2>&1; then
+		required_packages="$required_packages $i"
+	fi
+done
+
+if ! [ "$required_packages" = "" ]; then
+    $color_Purple
+    echo "Some packages not found on your system. Trying to download and install..."
+    if ! yum -y install $required_packages; then
+        $color_BRed
+        echo "Download failed! Check internet connection and try again!"
+        $color_Off
+        exit 1
+    else
+        $color_Green
+        echo "Installation success!"
+        $color_Off
+    fi
+fi
+
+# Discovery system configuration
+DOMAINNAME=`hostname`
+
+# Configure the defaults
+sed -i 's/^$default_charset.*$/$default_charset          = '\'utf-8\'';/g' /etc/squirrelmail/config.php
+sed -i 's/^$domain.*$/$domain                 = '\'${DOMAINNAME}\'';/g' /etc/squirrelmail/config.php
+
+# Create apache config
+cat > /etc/httpd/conf.d/squirrelmail.conf << EOF
+Alias /webmail /usr/share/squirrelmail
+
+<VirtualHost *:80>
+    DocumentRoot /usr/share/squirrelmail
+    ServerName mail.${DOMAINNAME}
+    ServerAlias mail.${DOMAINNAME}
+</VirtualHost>
+EOF
+
+# Restart httpd server
+service httpd reload >/dev/null 2>&1
+
+# Create installation signature
+if ! [ -d /var/lib/system-setup-tools ]; then
+	install -d /var/lib/system-setup-tools
+fi
+echo "Install date: `date`" > /var/lib/system-setup-tools/squirrelmail
+
+$color_BGreen
+echo "Setup completed!"
+$color_Off

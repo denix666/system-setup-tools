@@ -1,0 +1,170 @@
+#! /bin/bash
+#
+# Writen by Denis Salmanovich
+#
+
+[ -f /etc/denix-colors ] && . /etc/denix-colors
+
+# Check if script runs under root
+if ! [ "$(whoami)" = "root" ]; then
+    echo "You have to run me with root user priveleges!"
+    exit 1
+fi
+
+# Check SELinux configuration
+if [ -f /etc/selinux/config ]; then
+    . /etc/selinux/config
+    if ! [ "${SELINUX}" = "disabled" ]; then
+	echo "WARNING!"
+	echo "~~~~~~~~"
+	echo -n "The SELINUX has been set to ${SELINUX}. Do you want to disable it? (Y/n)?"; read USERINPUT
+	if [ "${USERINPUT}" = "" -o "${USERINPUT}" = "y" -o "${USERINPUT}" = "Y" ]; then
+	    sed -i 's/^SELINUX=.*$/SELINUX=disabled/g' /etc/selinux/config
+	    setenforce 0
+	fi
+	fi
+	. /etc/selinux/config
+	if [ "${SELINUX}" = "disabled" ]; then
+	    chkconfig restorecond off >/dev/null 2>&1
+	    chkconfig setroubleshoot off >/dev/null 2>&1
+    fi
+fi
+
+
+# Get the system NETBIOS NAME
+SYSTEM_NBTNAME=`hostname | cut -d. -f1`
+
+# Check if user want to use the system NBTNAME or any other
+while [ "${NBTNAME}" = "" ]; do
+    echo -n "Enter NETBIOS name for samba server [${SYSTEM_NBTNAME}]: "; read NBTNAME
+    if [ "${NBTNAME}" = "" ]; then
+	NBTNAME="${SYSTEM_NBTNAME}"
+    fi
+    if [ ${#NBTNAME} -gt 8 ]; then
+	echo "WARNING! The NETBIOS name longest than 8 characters!"
+	echo -n "Are you sure want to use it anyway [Y/n]?"; read USERINPUT
+	if [ "${USERINPUT}" = "n" ]; then
+	    NBTNAME=""
+	fi
+    fi
+done
+
+# Install samba packages
+pk="samba"
+for i in $pk; do
+    if ! rpm -q $i >/dev/null 2>&1; then
+	required_packages="$required_packages $i"
+    fi
+done
+
+if ! [ "$required_packages" = "" ]; then
+    $color_Purple
+    echo "Some packages not found on your system. Trying to download and install..."
+    if ! yum -y install $required_packages; then
+        $color_BRed
+        echo "Download failed! Check internet connection and try again!"
+        $color_Off
+        exit 1
+    else
+        $color_Green
+        echo "Installation success!"
+        $color_Off
+    fi
+fi
+
+# Stop the services for installation
+service smb stop >/dev/null 2>&1
+service nmb stop >/dev/null 2>&1
+
+# Check, if configuration file already exists, then backup it
+if [ -f /etc/samba/smb.conf ]; then
+    cp /etc/samba/smb.conf /etc/samba/smb.conf.back.`date +%Y%m%d%H%M`
+fi
+
+# Create directoriess of netlogon and public access
+install -m 700 -d /home/nobody/public
+install -m 700 -d /home/nobody/netlogon
+chown -R nobody:nobody /home/nobody
+
+# Create new samba configuration file
+cat > /etc/samba/smb.conf << EOF
+[global]
+    netbios name                = ${NBTNAME}
+    workgroup                   = workgroup
+    server string               = %h
+    security                    = user
+    wins support                = yes
+    domain master               = yes
+    domain logons               = yes
+    local master                = yes
+    preferred master            = yes
+    os level                    = 255
+    name resolve order          = dns wins
+    passdb backend              = tdbsam
+    logon home                  = \\\\%L\\%U
+    printing			= cups
+    client lanman auth		= yes
+    client plaintext auth	= yes
+    lanman auth			= yes
+
+[NETLOGON]
+    comment                     = Network Logon Directory
+    path                        = /home/nobody/netlogon
+    public                      = yes
+    browseable                  = no
+    read only                   = no
+    force user                  = nobody
+    force group                 = nobody
+    create mask                 = 0640
+    directory mask              = 0750
+
+[printers]
+    comment			= All printers
+    path			= /var/spool/samba
+    browseable			= yes
+    public			= yes
+    guest ok			= yes
+    printable			= yes
+    use client driver		= yes
+
+[homes]
+    comment                     = Home Directories
+    valid users                 = %S
+    browseable                  = no
+    read only                   = no
+    hide dot files              = yes
+    create mask                 = 0644
+    directory mask              = 0755
+
+[public]
+    comment                     = Public Directory
+    path                        = /home/nobody/public
+    browseable                  = yes
+    writeable			= yes
+    guest ok			= yes
+    force user                  = nobody
+    force group                 = nobody
+    create mask                 = 0640
+    directory mask              = 0750
+EOF
+
+
+# Enable samba daemons
+chkconfig smb on
+chkconfig nmb on
+
+# Start samba server
+service smb start
+service nmb start
+
+# Create installation signature
+if ! [ -d /var/lib/system-setup-tools ]; then
+    install -d /var/lib/system-setup-tools
+fi
+echo "Install date: `date`" > /var/lib/system-setup-tools/samba
+
+$color_Purple
+echo "Do not forget to open samba ports in your firewall!"
+$color_BGreen
+echo "Setup completed!"
+$color_Off

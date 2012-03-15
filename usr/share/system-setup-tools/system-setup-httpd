@@ -1,0 +1,146 @@
+#! /bin/bash
+#
+# Writen by Denis Salmanovich
+#
+
+[ -f /etc/denix-colors ] && . /etc/denix-colors
+
+# Check if script runs under root
+if ! [ "$(whoami)" = "root" ]; then
+    echo "You have to run me with root user priveleges!"
+    exit 1
+fi
+
+# Install required packages
+pk="httpd php php-pear php-mysql"
+for i in $pk; do
+	if ! rpm -q $i >/dev/null 2>&1; then
+		required_packages="$required_packages $i"
+	fi
+done
+
+if ! [ "$required_packages" = "" ]; then
+	$color_Purple
+	echo "Some packages not found on your system. Trying to download and install..."
+	if ! yum -y install $required_packages; then
+	    $color_BRed
+	    echo "Download failed! Check internet connection and try again!"
+	    $color_Off
+	    exit 1
+	else
+	    $color_Green
+	    echo "Installation success!"
+	    $color_Off
+	fi
+fi
+
+# Stop the services for installation
+service httpd stop >/dev/null 2>&1
+
+# Create skeleton pub directory
+if ! [ -f /etc/skel/.public_html ]; then
+    install -m 710 -d /etc/skel/.public_html
+fi
+
+# Discovery system configuration
+DOMAINNAME=`hostname`
+
+# Check, if vhosts file already exists, then backup it
+if [ -f /etc/httpd/conf.d/vhosts.conf ]; then
+    cp /etc/httpd/conf.d/vhosts.conf /etc/httpd/conf.d/vhosts.conf.back.`date +%Y%m%d%H%M`
+fi
+
+# Make public_html directories for existing users
+for i in `ls -d /home/*`; do
+    if [ -f $i/.bashrc ]; then
+		CUSER=`echo $i | cut -d/ -f3`
+		echo -n "Creating public_html directory for user: $CUSER... "
+		install -m 710 -d $i/.public_html
+		chown $CUSER:$CUSER $i/.public_html
+		echo "done."
+    fi
+done
+
+# Create webadmin user
+#if ! [ `cat /etc/passwd | grep ^webadmin:` ]; then
+#    echo "User webadmin must be created!"
+#    echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+#    echo "You can upload your web content to a web server by FTP with <webadmin> user"
+#    echo "Don't forget to setup the FTP server with <system-setup-proftpd> command!"
+#    echo "Creating user <webadmin>..."
+#    useradd -s /sbin/nologin -d /home/webadmin -m webadmin
+#    chmod 710 /home/webadmin
+#    chmod a+r /home/webadmin/.public_html
+#    echo "Please create the password for user <webadmin>:"
+#    passwd webadmin
+#
+#fi
+
+# Enable UserDir mode
+sed -i 's/^.*UserDir disabled$/#UserDir disabled/g' /etc/httpd/conf/httpd.conf
+
+# Disable errors notifications
+sed -i 's/^error_reporting.*$/error_reporting = E_ERROR/g' /etc/php.ini
+
+# Switch short open tag On
+sed -i 's/^short_open_tag = Off/short_open_tag = On/g' /etc/php.ini
+
+# Create userdir configuration
+cat > /etc/httpd/conf.d/userdir.conf << EOF
+<IfModule mod_userdir.c>
+    UserDir /home/*/.public_html
+</IfModule>
+
+<Directory /home/*/.public_html>
+    Options Indexes FollowSymLinks Multiviews
+    AllowOverride All
+    <Limit GET POST OPTIONS>
+        Order allow,deny
+        Allow from all
+    </Limit>
+    <LimitExcept GET POST OPTIONS>
+        Order deny,allow
+        Deny from all
+    </LimitExcept>
+</Directory>
+EOF
+
+# Create noindex content
+cat > /var/www/error/noindex.html << EOF
+<br>
+<br>
+<p align=center>Welcome to Linux server !!!</text>
+<br>
+<p align=center>~~~~~~~~~~~~~~~~~~~~~~~~~~~</text>
+EOF
+
+# Create virtual hosts configuration
+cat > /etc/httpd/conf.d/vhosts.conf << EOF
+ServerName ${DOMAINNAME}
+
+NameVirtualHost *:80
+
+<VirtualHost *:80>
+    DocumentRoot /home/webadmin/.public_html
+    ServerPath /.public_html
+    ServerName ${DOMAINNAME}
+    ServerAlias ${DOMAINNAME}
+    ServerAlias www.${DOMAINNAME}
+</VirtualHost>
+EOF
+
+# Enable daemons
+chkconfig httpd on
+
+# Start daemons
+service httpd start
+
+# Create installation signature
+if ! [ -d /var/lib/system-setup-tools ]; then
+	install -d /var/lib/system-setup-tools
+fi
+echo "Install date: `date`" > /var/lib/system-setup-tools/httpd
+
+$color_BGreen
+echo "Setup completed!"
+$color_Off

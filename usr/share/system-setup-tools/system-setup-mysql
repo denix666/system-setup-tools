@@ -1,0 +1,58 @@
+#! /bin/bash
+#
+# Writen by Denis Salmanovich
+#
+
+[ -f /etc/denix-colors ] && . /etc/denix-colors
+
+# Check if script runs under root
+if ! [ "$(whoami)" = "root" ]; then
+    echo "You have to run me with root user priveleges!"
+    exit 1
+fi
+
+# Stop the services for installation
+service mysqld stop >/dev/null 2>&1
+
+# Install required packages
+pk="mysql-server"
+for i in $pk; do
+	if ! rpm -q $i >/dev/null 2>&1; then
+		required_packages="$required_packages $i"
+	fi
+done
+
+if ! [ "$required_packages" = "" ]; then
+	$color_Purple
+	echo "Some packages not found on your system. Trying to download and install..."
+	if ! yum -y install $required_packages; then
+	    $color_BRed
+	    echo "Download failed! Check internet connection and try again!"
+	    $color_Off
+	    exit 1
+	else
+	    $color_Green
+	    echo "Installation success!"
+	    $color_Off
+	fi
+fi
+
+# Enable mysql daemon
+chkconfig mysqld on
+
+# Start mysql server
+service mysqld start
+
+$color_Green
+mysql_secure_installation
+$color_Off
+
+# Create installation signature
+if ! [ -d /var/lib/system-setup-tools ]; then
+	install -d /var/lib/system-setup-tools
+fi
+echo "Install date: `date`" > /var/lib/system-setup-tools/mysql
+
+$color_BGreen
+echo "Setup completed!"
+$color_Off

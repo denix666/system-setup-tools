@@ -1,0 +1,74 @@
+#! /bin/bash
+#
+# Writen by Denis Salmanovich
+#
+
+[ -f /etc/denix-colors ] && . /etc/denix-colors
+
+# Check if script runs under root
+if ! [ "$(whoami)" = "root" ]; then
+    echo "You have to run me with root user priveleges!"
+    exit 1
+fi
+
+# Install required packages
+pk="pptp"
+for i in $pk; do
+    if ! rpm -q $i >/dev/null 2>&1; then
+	required_packages="$required_packages $i"
+    fi
+done
+
+if ! [ "$required_packages" = "" ]; then
+    $color_Purple
+    echo "Some packages not found on your system. Trying to download and install..."
+    if ! yum -y install $required_packages; then
+        $color_BRed
+        echo "Download failed! Check internet connection and try again!"
+        $color_Off
+        exit 1
+    else
+        $color_Green
+        echo "Installation success!"
+        $color_Off
+    fi
+fi
+
+# Ask info
+echo -n "Enter your VPN username: "; read VPN_USERNAME
+read -s -p "Enter your VPN password: " VPN_PASSWORD; echo
+echo -n "Enter IP address of VPN server: "; read VPN_SERVER
+echo -n "Enter the name for this vpn connection (peer name): "; read VPN_PEERNAME
+
+# Create peer file
+cat > /etc/ppp/peers/$VPN_PEERNAME << EOF
+pty "pptp $VPN_SERVER --nolaunchpppd"
+name $VPN_USERNAME
+remotename PPTP
+require-mppe-128
+file /etc/ppp/options.pptp
+ipparam $VPN_PEERNAME
+EOF
+
+# Add peer secrets
+if cat /etc/ppp/chap-secrets | grep ^$VPN_USERNAME >/dev/null 2>&1; then
+    sed -i "s/^$VPN_USERNAME.*$/$VPN_USERNAME PPTP $VPN_PASSWORD */g" /etc/ppp/chap-secrets
+else
+    echo "$VPN_USERNAME PPTP $VPN_PASSWORD *" >> /etc/ppp/chap-secrets
+fi
+
+# Create installation signature
+if ! [ -d /var/lib/system-setup-tools ]; then
+    install -d /var/lib/system-setup-tools
+fi
+echo "Install date: `date`" > /var/lib/system-setup-tools/vpnpeer
+
+# Print info
+$color_Purple
+echo "You may start this connection by <pppd call $VPN_PEERNAME> command!"
+echo "To add default route, enter: <route add -net 10.0.0.8/24 dev ppp0>"
+echo "To disconnect from VPN server type <killall pppd>"
+echo
+$color_BGreen
+echo "Setup completed!"
+$color_Off
