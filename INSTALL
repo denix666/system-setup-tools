@@ -12,4 +12,4 @@ http://fedora.os.vc/yum/base/x1
 
 and install it by using this command as root:
 
-rpm -ivh <system-setup-tools.xx.x-xx.x1.noarch.rpm
+rpm -ivh system-setup-tools.xx.x-xx.x1.noarch.rpm
