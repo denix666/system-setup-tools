@@ -36,9 +36,10 @@ fi
 
 # Ask for network device
 while [ "${IFACE}" = "" ]; do
-	echo -n "What is your primary network interface [eth0]?"; read IFACE
+	FOUND_IFACE=`ifconfig | head -1 | awk '{print $1}'`
+	echo -n "What is your primary network interface [${FOUND_IFACE}]?"; read IFACE
 	if [ "${IFACE}" = "" ]; then
-		IFACE="eth0"
+		IFACE="${FOUND_IFACE}"
 	fi
 	if ! ifconfig ${IFACE} >/dev/null 2>&1; then
 		echo "Error fetching network device: ${IFACE}"
@@ -368,7 +369,7 @@ ${DOMAINNAME}		IN SOA	ns.${DOMAINNAME}. hostmaster.${DOMAINNAME}. (
 \$ORIGIN ${DOMAINNAME}.
 ns                      A       ${IPADDR}
 mail			A	${IPADDR}
-www			CNAME	${DOMAINNAME}.
+www			A	${IPADDR}
 EOF
 chown named:named /var/named/masters/internal/${DOMAINNAME}
 
@@ -399,7 +400,7 @@ ${DOMAINNAME}		IN SOA	ns.${DOMAINNAME}. hostmaster.${DOMAINNAME}. (
 \$ORIGIN ${DOMAINNAME}.
 ns                      A       ${IPADDR}
 mail			A	${IPADDR}
-www			CNAME	${DOMAINNAME}.
+www			A	${IPADDR}
 EOF
 chown named:named /var/named/masters/external/${DOMAINNAME}
 

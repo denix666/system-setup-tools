@@ -1,0 +1,113 @@
+#! /bin/bash
+#
+# Writen by Denis Salmanovich
+#
+
+[ -f /etc/denix-colors ] && . /etc/denix-colors
+
+# Check if script runs under root
+if ! [ "$(whoami)" = "root" ]; then
+    echo "You have to run me with root user priveleges!"
+    exit 1
+fi
+
+# Это надо будет спрашивать у пользователя или выяснять другими способами
+EXT_IPADDR="10.10.10.10"
+VIRTUALHOST="my.domain.ku"
+
+
+# Ask for network device
+while [ "${IFACE}" = "" ]; do
+	FOUND_IFACE=`ifconfig | head -1 | awk '{print $1}'`
+	echo -n "What is your primary network interface [${FOUND_IFACE}]?"; read IFACE
+	if [ "${IFACE}" = "" ]; then
+		IFACE="${FOUND_IFACE}"
+	fi
+	if ! ifconfig ${IFACE} >/dev/null 2>&1; then
+		echo "Error fetching network device: ${IFACE}"
+		IFACE=""
+	fi
+	if ifconfig ${IFACE} | head -2 | tail -1 | grep "BROADCAST" >/dev/null 2>&1; then
+		echo "Error fetching IP address for device: ${IFACE}"
+		IFACE=""
+	fi
+done
+
+INT_IPADDR=`ifconfig ${IFACE} | head -2 | tail -1 | awk '{print $2}' | cut -d":" -f2`
+
+
+cat > /var/named/masters/internal/${VIRTUALHOST} << EOF
+\$ORIGIN .
+\$TTL 300	; 5 minutes
+${VIRTUALHOST}		IN SOA	ns.${VIRTUALHOST}. hostmaster.${VIRTUALHOST}. (
+				1          ; serial
+                                300        ; refresh (5 minutes)
+                                300        ; retry (5 minutes)
+                                300        ; expire (5 minutes)
+                                300        ; minimum (5 minutes)
+                                )
+                        NS      ns.${VIRTUALHOST}.
+                        A       ${INT_IPADDR}
+                        MX      10 ${VIRTUALHOST}.
+\$ORIGIN ${VIRTUALHOST}.
+ns                      A       ${INT_IPADDR}
+mail			A	${INT_IPADDR}
+www			A	${INT_IPADDR}
+EOF
+chown named:named /var/named/masters/internal/${VIRTUALHOST}
+
+cat >> /var/named/masters/internal.zones << EOF
+
+zone "${VIRTUALHOST}" IN {
+    type master;
+    file "masters/internal/${VIRTUALHOST}";
+    allow-update { key rndc-key; };
+    allow-transfer { none; };
+};
+EOF
+
+cat > /var/named/masters/external/${VIRTUALHOST} << EOF
+\$ORIGIN .
+\$TTL 300	; 5 minutes
+${VIRTUALHOST}		IN SOA	ns.${VIRTUALHOST}. hostmaster.${VIRTUALHOST}. (
+				1          ; serial
+                                300        ; refresh (5 minutes)
+                                300        ; retry (5 minutes)
+                                300        ; expire (5 minutes)
+                                300        ; minimum (5 minutes)
+                                )
+                        NS      ns.${VIRTUALHOST}.
+                        A       ${EXT_IPADDR}
+                        MX      10 ${VIRTUALHOST}.
+\$ORIGIN ${VIRTUALHOST}.
+ns                      A       ${EXT_IPADDR}
+mail			A	${EXT_IPADDR}
+www			A	${EXT_IPADDR}
+EOF
+chown named:named /var/named/masters/external/${VIRTUALHOST}
+
+cat >> /var/named/masters/external.zones << EOF
+
+zone "${VIRTUALHOST}" IN {
+    type master;
+    file "masters/external/${VIRTUALHOST}";
+    allow-update { key rndc-key; };
+    allow-transfer { none; };
+};
+EOF
+
+# Add virtual host configuration to apache
+cat >> /etc/httpd/conf.d/vhosts.conf << EOF
+
+<VirtualHost *:80>
+    DocumentRoot /home/vulf.lt/.public_html
+    ServerPath /.public_html
+    ServerName ${VIRTUALHOST}
+    ServerAlias ${VIRTUALHOST}
+    ServerAlias www.${VIRTUALHOST}
+</VirtualHost>
+EOF
+
+# Restart services after changes
+service named restart
+service httpd restart
