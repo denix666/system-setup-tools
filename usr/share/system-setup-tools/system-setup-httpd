@@ -71,21 +71,6 @@ for i in `ls -d /home/*`; do
     fi
 done
 
-# Create webadmin user
-#if ! [ `cat /etc/passwd | grep ^webadmin:` ]; then
-#    echo "User webadmin must be created!"
-#    echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-#    echo "You can upload your web content to a web server by FTP with <webadmin> user"
-#    echo "Don't forget to setup the FTP server with <system-setup-proftpd> command!"
-#    echo "Creating user <webadmin>..."
-#    useradd -s /sbin/nologin -d /home/webadmin -m webadmin
-#    chmod 710 /home/webadmin
-#    chmod a+r /home/webadmin/.public_html
-#    echo "Please create the password for user <webadmin>:"
-#    passwd webadmin
-#
-#fi
-
 # Enable UserDir mode
 sed -i 's/^.*UserDir disabled$/#UserDir disabled/g' /etc/httpd/conf/httpd.conf
 

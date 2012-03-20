@@ -17,10 +17,10 @@
 [ -f /etc/denix-colors ] && . /etc/denix-colors
 
 # Check if script runs under root
-#if ! [ "$(whoami)" = "root" ]; then
-#    echo "You have to run me with root user priveleges!"
-#    exit 1
-#fi
+if ! [ "$(whoami)" = "root" ]; then
+    echo "You have to run me with root user priveleges!"
+    exit 1
+fi
 
 # Ask for network device
 while [ "${IFACE}" = "" ]; do
@@ -49,9 +49,17 @@ INT_IPADDR=`ifconfig ${IFACE} | head -2 | tail -1 | awk '{print $2}' | cut -d":"
 # Ask for virtual hostname 
 DOMAINNAME=`hostname`
 while [ "${VIRTUALHOST}" = "" ]; do
+    $color_Cyan
     echo -n "Enter name for virtualhost [${DOMAINNAME}]: "; read VIRTUALHOST
+    $color_Off
     if [ "${VIRTUALHOST}" = "" ]; then
 	VIRTUALHOST="${DOMAINNAME}"
+    fi
+    if [ -e /var/named/masters/internal/${VIRTUALHOST} ]; then
+	$color_Red
+	echo "That virtualhost already exists!. Please choose another one!"
+	$color_Off
+	VIRTUALHOST=""
     fi
 done
 
@@ -61,19 +69,34 @@ if [ "${VIRTUALHOST_IP}" = "" ]; then
     VIRTUALHOST_IP=${INT_IPADDR}
 fi
 while [ "${EXT_IPADDR}" = "" ]; do
+    $color_Cyan
     echo -n "Enter external IP address of virtualhost [${VIRTUALHOST_IP}]: "; read EXT_IPADDR
+    $color_Off
     if [ "${EXT_IPADDR}" = "" ]; then
 	EXT_IPADDR="${VIRTUALHOST_IP}"
     fi
 done
 
-# Ask to add virtualhost user
-
-
-
-echo ${VIRTUALHOST}
-echo ${EXT_IPADDR}
-
+# Add virtualhost user
+if ! [ `cat /etc/passwd | grep ^${VIRTUALHOST}:` ]; then
+    echo
+    $color_Green
+    echo "Virtualhost user must be created!"
+    echo "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    echo "You can upload your web content related to this virtualhost by FTP with this user"
+    echo "Don't forget to setup the FTP server with <system-setup-proftpd> command!"
+    echo
+    $color_Yellow
+    echo "Creating user <${VIRTUALHOST}>..."
+    echo
+#    useradd -s /sbin/nologin ${VIRTUALHOST}
+#    chmod 710 /home/webadmin
+#    chmod a+r /home/webadmin/.public_html
+    $color_Cyan
+    echo "Please create the password for user <${VIRTUALHOST}>:"
+#    passwd webadmin
+    $color_Off
+fi
 
 
 exit 0
@@ -142,7 +165,7 @@ EOF
 cat >> /etc/httpd/conf.d/vhosts.conf << EOF
 
 <VirtualHost *:80>
-    DocumentRoot /home/vulf.lt/.public_html
+    DocumentRoot /home/${VIRTUALHOST}/.public_html
     ServerPath /.public_html
     ServerName ${VIRTUALHOST}
     ServerAlias ${VIRTUALHOST}
