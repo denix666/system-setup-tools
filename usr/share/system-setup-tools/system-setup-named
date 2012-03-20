@@ -46,19 +46,25 @@ fi
 
 # Ask for network device
 while [ "${IFACE}" = "" ]; do
-	FOUND_IFACE=`ifconfig | head -1 | awk '{print $1}'`
-	echo -n "What is your primary network interface [${FOUND_IFACE}]?"; read IFACE
-	if [ "${IFACE}" = "" ]; then
-		IFACE="${FOUND_IFACE}"
-	fi
-	if ! ifconfig ${IFACE} >/dev/null 2>&1; then
-		echo "Error fetching network device: ${IFACE}"
-		IFACE=""
-	fi
-	if ifconfig ${IFACE} | head -2 | tail -1 | grep "BROADCAST" >/dev/null 2>&1; then
-		echo "Error fetching IP address for device: ${IFACE}"
-		IFACE=""
-	fi
+    FOUND_IFACE=`ifconfig -a | sed 's/[ \t].*//;/^\(lo\|\)$/d' | head -1`
+    $color_Cyan
+    echo -n "What is your primary network interface [${FOUND_IFACE}]?"; read IFACE
+    $color_Off
+    if [ "${IFACE}" = "" ]; then
+	IFACE="${FOUND_IFACE}"
+    fi
+    if ! ifconfig ${IFACE} >/dev/null 2>&1; then
+	$color_Red
+	echo "Error fetching network device: ${IFACE}"
+	$color_Off
+	IFACE=""
+    fi
+    if ifconfig ${IFACE} | head -2 | tail -1 | grep "BROADCAST" >/dev/null 2>&1; then
+	$color_Red
+	echo "Error fetching IP address for device: ${IFACE}"
+	$color_Off
+	IFACE=""
+    fi
 done
 
 # Ask for DNS forwarders

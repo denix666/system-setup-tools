@@ -127,16 +127,15 @@ EOF
 # Create virtual hosts configuration
 cat > /etc/httpd/conf.d/vhosts.conf << EOF
 ServerName ${DOMAINNAME}
-
 NameVirtualHost *:80
 
-<VirtualHost *:80>
-    DocumentRoot /home/webadmin/.public_html
-    ServerPath /.public_html
-    ServerName ${DOMAINNAME}
-    ServerAlias ${DOMAINNAME}
-    ServerAlias www.${DOMAINNAME}
-</VirtualHost>
+#<VirtualHost *:80>
+#    DocumentRoot /home/webadmin/.public_html
+#    ServerPath /.public_html
+#    ServerName ${DOMAINNAME}
+#    ServerAlias ${DOMAINNAME}
+#    ServerAlias www.${DOMAINNAME}
+#</VirtualHost>
 EOF
 
 # Enable daemons

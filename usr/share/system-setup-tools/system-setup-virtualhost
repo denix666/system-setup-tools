@@ -17,35 +17,66 @@
 [ -f /etc/denix-colors ] && . /etc/denix-colors
 
 # Check if script runs under root
-if ! [ "$(whoami)" = "root" ]; then
-    echo "You have to run me with root user priveleges!"
-    exit 1
-fi
-
-# Это надо будет спрашивать у пользователя или выяснять другими способами
-EXT_IPADDR="10.10.10.10"
-VIRTUALHOST="my.domain.ku"
-
+#if ! [ "$(whoami)" = "root" ]; then
+#    echo "You have to run me with root user priveleges!"
+#    exit 1
+#fi
 
 # Ask for network device
 while [ "${IFACE}" = "" ]; do
-	FOUND_IFACE=`ifconfig | head -1 | awk '{print $1}'`
-	echo -n "What is your primary network interface [${FOUND_IFACE}]?"; read IFACE
-	if [ "${IFACE}" = "" ]; then
-		IFACE="${FOUND_IFACE}"
-	fi
-	if ! ifconfig ${IFACE} >/dev/null 2>&1; then
-		echo "Error fetching network device: ${IFACE}"
-		IFACE=""
-	fi
-	if ifconfig ${IFACE} | head -2 | tail -1 | grep "BROADCAST" >/dev/null 2>&1; then
-		echo "Error fetching IP address for device: ${IFACE}"
-		IFACE=""
-	fi
+    FOUND_IFACE=`ifconfig -a | sed 's/[ \t].*//;/^\(lo\|\)$/d' | head -1`
+    $color_Cyan
+    echo -n "What is your primary network interface [${FOUND_IFACE}]?"; read IFACE
+    $color_Off
+    if [ "${IFACE}" = "" ]; then
+	IFACE="${FOUND_IFACE}"
+    fi
+    if ! ifconfig ${IFACE} >/dev/null 2>&1; then
+	$color_Red
+	echo "Error fetching network device: ${IFACE}"
+	$color_Off
+	IFACE=""
+    fi
+    if ifconfig ${IFACE} | head -2 | tail -1 | grep "BROADCAST" >/dev/null 2>&1; then
+	$color_Red
+	echo "Error fetching IP address for device: ${IFACE}"
+	$color_Off
+	IFACE=""
+    fi
 done
-
 INT_IPADDR=`ifconfig ${IFACE} | head -2 | tail -1 | awk '{print $2}' | cut -d":" -f2`
 
+# Ask for virtual hostname 
+DOMAINNAME=`hostname`
+while [ "${VIRTUALHOST}" = "" ]; do
+    echo -n "Enter name for virtualhost [${DOMAINNAME}]: "; read VIRTUALHOST
+    if [ "${VIRTUALHOST}" = "" ]; then
+	VIRTUALHOST="${DOMAINNAME}"
+    fi
+done
+
+# Ask for virtual hostname external IP address
+VIRTUALHOST_IP=`ping -c1 ${VIRTUALHOST} | head -1 | awk -F"(" '{print $2}' | cut -d")" -f1`
+if [ "${VIRTUALHOST_IP}" = "" ]; then
+    VIRTUALHOST_IP=${INT_IPADDR}
+fi
+while [ "${EXT_IPADDR}" = "" ]; do
+    echo -n "Enter external IP address of virtualhost [${VIRTUALHOST_IP}]: "; read EXT_IPADDR
+    if [ "${EXT_IPADDR}" = "" ]; then
+	EXT_IPADDR="${VIRTUALHOST_IP}"
+    fi
+done
+
+# Ask to add virtualhost user
+
+
+
+echo ${VIRTUALHOST}
+echo ${EXT_IPADDR}
+
+
+
+exit 0
 
 cat > /var/named/masters/internal/${VIRTUALHOST} << EOF
 \$ORIGIN .

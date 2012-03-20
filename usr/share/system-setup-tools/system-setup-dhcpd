@@ -58,11 +58,12 @@ fi
 
 # Ask for network device
 while [ "${IFACE}" = "" ]; do
+    FOUND_IFACE=`ifconfig -a | sed 's/[ \t].*//;/^\(lo\|\)$/d' | head -1`
     $color_Cyan
-    echo -n "What is your primary network interface [eth0]?"; read IFACE
+    echo -n "What is your primary network interface [${FOUND_IFACE}]?"; read IFACE
     $color_Off
     if [ "${IFACE}" = "" ]; then
-	IFACE="eth0"
+	IFACE="${FOUND_IFACE}"
     fi
     if ! ifconfig ${IFACE} >/dev/null 2>&1; then
 	$color_Red
