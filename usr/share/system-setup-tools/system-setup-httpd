@@ -114,13 +114,13 @@ cat > /etc/httpd/conf.d/vhosts.conf << EOF
 ServerName ${DOMAINNAME}
 NameVirtualHost *:80
 
-#<VirtualHost *:80>
-#    DocumentRoot /home/webadmin/.public_html
-#    ServerPath /.public_html
-#    ServerName ${DOMAINNAME}
-#    ServerAlias ${DOMAINNAME}
-#    ServerAlias www.${DOMAINNAME}
-#</VirtualHost>
+<VirtualHost *:80>
+    DocumentRoot /var/www/html
+    ServerPath /html
+    ServerName ${DOMAINNAME}
+    ServerAlias ${DOMAINNAME}
+    ServerAlias www.${DOMAINNAME}
+</VirtualHost>
 EOF
 
 # Enable daemons
@@ -135,6 +135,9 @@ if ! [ -d /var/lib/system-setup-tools ]; then
 fi
 echo "Install date: `date`" > /var/lib/system-setup-tools/httpd
 
+$color_Purple
+echo "Do not forget to open port 80 tcp in your firewall!"
+echo "Now you can setup the virtualhost with <system-setup-virtualhost> command!"
 $color_BGreen
 echo "Setup completed!"
 $color_Off

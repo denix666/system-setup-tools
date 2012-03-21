@@ -22,6 +22,30 @@ if ! [ "$(whoami)" = "root" ]; then
     exit 1
 fi
 
+# Check if named is installed
+if ! [ -f /var/lib/system-setup-tools/named ]; then
+    $color_Red
+    echo "The named server is not installed on your system!"
+    $color_Cyan
+    echo -n "Do you want to install it now? (Y/n)?"; read USERINPUT
+    $color_Off
+    if [ "${USERINPUT}" = "" -o "${USERINPUT}" = "y" -o "${USERINPUT}" = "Y" ]; then
+	/usr/bin/system-setup-named
+    fi
+fi
+
+# Check if apache is installed
+if ! [ -f /var/lib/system-setup-tools/httpd ]; then
+    $color_Red
+    echo "The named server is not installed on your system!"
+    $color_Cyan
+    echo -n "Do you want to install it now? (Y/n)?"; read USERINPUT
+    $color_Off
+    if [ "${USERINPUT}" = "" -o "${USERINPUT}" = "y" -o "${USERINPUT}" = "Y" ]; then
+	/usr/bin/system-setup-httpd
+    fi
+fi
+
 # Ask for network device
 while [ "${IFACE}" = "" ]; do
     FOUND_IFACE=`ifconfig -a | sed 's/[ \t].*//;/^\(lo\|\)$/d' | head -1`
@@ -89,12 +113,12 @@ if ! [ `cat /etc/passwd | grep ^${VIRTUALHOST}:` ]; then
     $color_Yellow
     echo "Creating user <${VIRTUALHOST}>..."
     echo
-#    useradd -s /sbin/nologin ${VIRTUALHOST}
-#    chmod 710 /home/webadmin
-#    chmod a+r /home/webadmin/.public_html
+    useradd -s /sbin/nologin ${VIRTUALHOST}
+    chmod 710 /home/${VIRTUALHOST}
+    usermod -a G ${VIRTUALHOST} apache
     $color_Cyan
     echo "Please create the password for user <${VIRTUALHOST}>:"
-#    passwd webadmin
+    passwd ${VIRTUALHOST}
     $color_Off
 fi
 
@@ -161,6 +185,11 @@ zone "${VIRTUALHOST}" IN {
 };
 EOF
 
+# Check, if vhosts file already exists, then backup it
+if [ -f /etc/httpd/conf.d/vhosts.conf ]; then
+    cp /etc/httpd/conf.d/vhosts.conf /etc/httpd/conf.d/vhosts.conf.back.`date +%Y%m%d%H%M`
+fi
+
 # Add virtual host configuration to apache
 cat >> /etc/httpd/conf.d/vhosts.conf << EOF
 
@@ -174,5 +203,5 @@ cat >> /etc/httpd/conf.d/vhosts.conf << EOF
 EOF
 
 # Restart services after changes
-service named restart
-service httpd restart
+service named reload
+service httpd reload
