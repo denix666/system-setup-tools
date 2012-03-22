@@ -88,10 +88,7 @@ while [ "${VIRTUALHOST}" = "" ]; do
 done
 
 # Ask for virtual hostname external IP address
-VIRTUALHOST_IP=`ping -c1 ${VIRTUALHOST} | head -1 | awk -F"(" '{print $2}' | cut -d")" -f1`
-if [ "${VIRTUALHOST_IP}" = "" ]; then
-    VIRTUALHOST_IP=${INT_IPADDR}
-fi
+VIRTUALHOST_IP=${INT_IPADDR}
 while [ "${EXT_IPADDR}" = "" ]; do
     $color_Cyan
     echo -n "Enter external IP address of virtualhost [${VIRTUALHOST_IP}]: "; read EXT_IPADDR
@@ -122,8 +119,6 @@ if ! [ `cat /etc/passwd | grep ^${VIRTUALHOST}:` ]; then
     $color_Off
 fi
 
-
-exit 0
 
 cat > /var/named/masters/internal/${VIRTUALHOST} << EOF
 \$ORIGIN .
@@ -203,5 +198,5 @@ cat >> /etc/httpd/conf.d/vhosts.conf << EOF
 EOF
 
 # Restart services after changes
-service named reload
-service httpd reload
+service named restart
+service httpd restart
