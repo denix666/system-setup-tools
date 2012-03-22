@@ -115,7 +115,7 @@ if ! [ `cat /etc/passwd | grep ^${VIRTUALHOST}:` ]; then
     echo
     useradd -s /sbin/nologin ${VIRTUALHOST}
     chmod 710 /home/${VIRTUALHOST}
-    usermod -a G ${VIRTUALHOST} apache
+    usermod -a -G ${VIRTUALHOST} apache
     $color_Cyan
     echo "Please create the password for user <${VIRTUALHOST}>:"
     passwd ${VIRTUALHOST}
