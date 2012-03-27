@@ -1,1 +1,2 @@
-22.03.2012 - Added package php-mbstring to install list. Fixed system-setup-virtualhost.
+27.03.2012 - v18.1-2 Updated information about root name servers in system-setup-named.
+22.03.2012 - v18.1-1 Added package php-mbstring to install list. Fixed system-setup-virtualhost.
