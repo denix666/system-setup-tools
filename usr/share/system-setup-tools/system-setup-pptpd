@@ -1,0 +1,126 @@
+#! /bin/bash
+#
+# Copyright © 2001 - 2012 Denis Salmanovich denis.salmanovich@gmail.com
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+
+[ -f /etc/denix-colors ] && . /etc/denix-colors
+
+# Check if script runs under root
+if ! [ "$(whoami)" = "root" ]; then
+    echo "You have to run me with root user priveleges!"
+    exit 1
+fi
+
+# Check the system version
+[ -f /etc/fedora-release ] && system_version=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
+case ${system_version} in
+    14|15|16)
+    poptop_link="http://poptop.sourceforge.net/yum/stable/fc${system_version}/pptp-release-current.noarch.rpm"
+    ;;
+
+    *)
+    echo "Unsupported system. Exiting."
+    exit 1
+    ;;
+esac
+
+# Install repository
+if ! rpm -q "pptp-release" >/dev/null 2>&1; then
+	echo "Poptop repository not installed!"
+	echo "Trying to download and add it to the system..."
+	if rpm -Uvh ${poptop_link} >/dev/null 2>&1; then
+	    echo "poptop repo added to the system."
+	else
+	    echo "Download failed! Check internet connection and try again!"
+	    exit 1
+	fi
+fi
+
+# Install required packages
+pk="pptpd"
+for i in $pk; do
+	if ! rpm -q $i >/dev/null 2>&1; then
+		required_packages="$required_packages $i"
+	fi
+done
+
+if ! [ "$required_packages" = "" ]; then
+	echo "Some packages not found on your system. Trying to download and install..."
+	if ! yum -y install $required_packages; then
+		echo "Download failed! Check internet connection and try again!"
+		exit 1
+	else
+		echo "Installation success!"
+	fi
+fi
+
+# Check, if /etc/ppp/options.pptp file already exists, then backup it
+if [ -f /etc/ppp/options.pptp ]; then
+    cp /etc/ppp/options.pptp /etc/ppp/options.pptp.back.`date +%Y%m%d%H%M`
+fi
+
+# Check, if /etc/pptpd.conf file already exists, then backup it
+if [ -f /etc/pptpd.conf ]; then
+    cp /etc/pptpd.conf /etc/pptpd.conf.back.`date +%Y%m%d%H%M`
+fi
+
+# Creating /etc/pptpd.conf config
+cat > /etc/pptpd.conf << EOF
+option /etc/ppp/options.pptp
+logwtmp
+localip 10.8.1.1
+remoteip 10.8.1.2-10
+EOF
+
+# Creating /etc/ppp/options.pptp config
+cat > /etc/ppp/options.pptp << EOF
+name pptpd
+refuse-pap
+refuse-chap
+refuse-mschap
+require-mschap-v2
+require-mppe-128
+ms-dns 10.8.1.1
+ms-wins 10.8.1.1
+proxyarp
+lock
+nobsdcomp
+novj
+novjccomp
+nologfd
+EOF
+
+# Enable daemons
+chkconfig pptpd on
+
+# Start daemons
+service pptpd start
+
+# Create installation signature
+if ! [ -d /var/lib/system-setup-tools ]; then
+	install -d /var/lib/system-setup-tools
+fi
+echo "Install date: `date`" > /var/lib/system-setup-tools/pptpd
+
+# Print info
+$color_Purple
+echo "Do not forget to open port 1723-tcp and 47-ip in your firewall!"
+echo
+echo "You have to add your remote users to /etc/ppp/chap-secrets:"
+echo
+echo "username   pptpd   password   *"
+echo
+echo
+$color_BGreen
+echo "Setup completed!"
+$color_Off
