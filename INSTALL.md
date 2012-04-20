@@ -1,9 +1,8 @@
 Fedora 12-15 - install the denix repo.
+
 Fedora 16 - install the denix-x repo.
 
-You can install system-setup-tools using the yum program (or it's GUI, Package Manager).
-
-Make sure you enabled the DeniX repository and type the following as root:
+You can install system-setup-tools using the yum program (or it's GUI, Package Manager). Make sure you enabled the DeniX repository and type the following as root:
 
 ```vim
 #yum install system-setup-tools
