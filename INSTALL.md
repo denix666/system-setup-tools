@@ -4,12 +4,15 @@ You can install system-setup-tools using the yum program (or it's GUI, Package M
 
 Make sure you enabled the DeniX repository and type the following as root:
 
-yum install system-setup-tools
-
+```vim
+#yum install system-setup-tools
+```
 If you want to install this package manualy, download the latest version from one of my mirrors:
 
-http://fedora.os.vc/yum/base/x1
+[http://mirror.os.vc/denix-repo/yum/base/x1]
 
 and install it by using this command as root:
 
-rpm -ivh system-setup-tools.xx.x-xx.x1.noarch.rpm
+```vim
+#rpm -ivh system-setup-tools.xx.x-xx.x1.noarch.rpm
+```
