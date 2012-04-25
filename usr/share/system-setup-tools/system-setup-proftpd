@@ -86,8 +86,8 @@ AccessGrantMsg			"User %u logged in."
 DeferWelcome			off
 
 DefaultRoot			~/.public_html !adm
-AuthPAMConfig			proftpd
-AuthOrder			mod_auth_pam.c* mod_auth_unix.c
+#AuthPAMConfig			proftpd
+#AuthOrder			mod_auth_pam.c* mod_auth_unix.c
 IdentLookups			off
 UseReverseDNS			off
 Port				21
