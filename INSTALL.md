@@ -34,7 +34,7 @@ Clone my git repository and run the build script:
 ```vim
 $mkdir git-repos
 $cd git-repos
-$git clone https://github.com/denix666/arp-check.git
-$cd arp-check
-$./build_arch-check
+$git clone https://github.com/denix666/system-setup-tools.git
+$cd system-setup-tools
+$./build_system-setup-tools
 ```
