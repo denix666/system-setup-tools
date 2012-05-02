@@ -36,5 +36,5 @@ $mkdir git-repos
 $cd git-repos
 $git clone https://github.com/denix666/system-setup-tools.git
 $cd system-setup-tools
-$./build_system-setup-tools
+$./build_system-setup-tools.sh
 ```
