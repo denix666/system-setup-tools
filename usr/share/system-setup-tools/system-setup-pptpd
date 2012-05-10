@@ -64,6 +64,29 @@ if ! [ "$required_packages" = "" ]; then
 	fi
 fi
 
+# Ask for network device
+while [ "${IFACE}" = "" ]; do
+    FOUND_IFACE=`ifconfig -a | sed 's/[ \t].*//;/^\(lo\|\)$/d' | head -1`
+    $color_Cyan
+    echo -n "What is your primary network interface [${FOUND_IFACE}]?"; read IFACE
+    $color_Off
+    if [ "${IFACE}" = "" ]; then
+	IFACE="${FOUND_IFACE}"
+    fi
+    if ! ifconfig ${IFACE} >/dev/null 2>&1; then
+	$color_Red
+	echo "Error fetching network device: ${IFACE}"
+	$color_Off
+	IFACE=""
+    fi
+    if ifconfig ${IFACE} | head -2 | tail -1 | grep "BROADCAST" >/dev/null 2>&1; then
+	$color_Red
+	echo "Error fetching IP address for device: ${IFACE}"
+	$color_Off
+	IFACE=""
+    fi
+done
+
 # Check, if /etc/ppp/options.pptp file already exists, then backup it
 if [ -f /etc/ppp/options.pptp ]; then
     cp /etc/ppp/options.pptp /etc/ppp/options.pptp.back.`date +%Y%m%d%H%M`
@@ -74,12 +97,17 @@ if [ -f /etc/pptpd.conf ]; then
     cp /etc/pptpd.conf /etc/pptpd.conf.back.`date +%Y%m%d%H%M`
 fi
 
+# Discovery system configuration
+IPADDR=`ifconfig ${IFACE} | head -2 | tail -1 | awk '{print $2}' | cut -d":" -f2`
+LOCAL_IP=`echo ${IPADDR} | awk -F. '{print $1"."$2"."$3".221"}'`
+REMOTE_RANGE=`echo ${IPADDR} | awk -F. '{print $1"."$2"."$3".222-230"}'`
+
 # Creating /etc/pptpd.conf config
 cat > /etc/pptpd.conf << EOF
 option /etc/ppp/options.pptp
 logwtmp
-localip 10.8.1.1
-remoteip 10.8.1.2-10
+localip ${LOCAL_IP}
+remoteip ${REMOTE_RANGE}
 EOF
 
 # Creating /etc/ppp/options.pptp config
@@ -90,8 +118,8 @@ refuse-chap
 refuse-mschap
 require-mschap-v2
 require-mppe-128
-ms-dns 10.8.1.1
-ms-wins 10.8.1.1
+ms-dns ${LOCAL_IP}
+ms-wins ${LOCAL_IP}
 proxyarp
 lock
 nobsdcomp
