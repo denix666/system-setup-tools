@@ -58,6 +58,21 @@ fi
 # Stop the services for installation
 service xinetd stop >/dev/null 2>&1
 
+# Check the system version
+##########################
+[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
+
+case ${system_ver} in
+    14|15|16|17)
+	tftpboot_path="/var/lib/tftpboot"
+	syslinux_path="/usr/share/syslinux"
+	;;
+    *)
+	echo "Unsupported system. Exiting."
+	exit 1
+	;;
+esac
+
 # Create directories for tftp daemon
 install -m 755 -d ${tftpboot_path}/{pxelinux.cfg,images,menu-labels}
 

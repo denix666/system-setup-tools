@@ -46,9 +46,19 @@ if ! [ -f /var/lib/system-setup-tools/httpd ]; then
     fi
 fi
 
+# Check system version
+[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
+
 # Ask for network device
 while [ "${IFACE}" = "" ]; do
-    FOUND_IFACE=`ifconfig -a | sed 's/[ \t].*//;/^\(lo\|\)$/d' | head -1`
+    case ${system_ver} in
+	17)
+	    FOUND_IFACE=`ifconfig -a | sed 's/[: ].*//;/^\(lo\|\)$/d' | head -1`
+	    ;;
+	*)
+	    FOUND_IFACE=`ifconfig -a | sed 's/[ \t].*//;/^\(lo\|\)$/d' | head -1`
+	    ;;
+    esac
     $color_Cyan
     echo -n "What is your primary network interface [${FOUND_IFACE}]?"; read IFACE
     $color_Off
