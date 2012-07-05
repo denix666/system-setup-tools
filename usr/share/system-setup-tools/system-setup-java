@@ -67,11 +67,17 @@ java_selection=`echo | ${alt_java_config_cmd} | grep ${alt_java_name} | cut -b4`
 (echo ${java_selection};) | ${alt_java_config_cmd} >/dev/null 2>&1
 
 echo "Browser plugin configuration..."
-${alt_plugin_install_cmd}
+${alt_plugin_inst_cmd}
 java_plugin_selection=`echo | ${alt_plugin_config_cmd} | grep ${alt_plugin_name} | cut -b4`
 (echo ${java_plugin_selection};) | ${alt_plugin_config_cmd} >/dev/null 2>&1
 
+
+# Create installation signature
+if ! [ -d /var/lib/system-setup-tools ]; then
+    install -d /var/lib/system-setup-tools
+fi
 echo "Install date: `date`" > /var/lib/system-setup-tools/java
+
 $color_BGreen
 echo "Setup completed!"
 $color_Off
