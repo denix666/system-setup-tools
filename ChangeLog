@@ -1,8 +1,9 @@
-18.06.2012 - v18.3.1 Added support for Fedora 17
-10.05.2012 - v18.2-4 Fixed system-setup-pptpd - the VPN server configuration script
-02.05.2012 - v18.2-3 Fixed system-setup-virtualhost script
-27.04.2012 - v18.2-2 Added script to build RPM package
-25.04.2012 - v18.2-2 Fixed proftpd configuration (issue with pam_env.conf error)
-15.04.2012 - v18.2-1 Added system-setup-pptpd - the VPN server wizard.
-27.03.2012 - v18.1-2 Updated information about root name servers in system-setup-named.
-22.03.2012 - v18.1-1 Added package php-mbstring to install list. Fixed system-setup-virtualhost.
+05.07.2012 - Added system-setup-java script (JRE installation script)
+18.06.2012 - Added support for Fedora 17
+10.05.2012 - Fixed system-setup-pptpd - the VPN server configuration script
+02.05.2012 - Fixed system-setup-virtualhost script
+27.04.2012 - Added script to build RPM package
+25.04.2012 - Fixed proftpd configuration (issue with pam_env.conf error)
+15.04.2012 - Added system-setup-pptpd - the VPN server wizard.
+27.03.2012 - Updated information about root name servers in system-setup-named.
+22.03.2012 - Added package php-mbstring to install list. Fixed system-setup-virtualhost.

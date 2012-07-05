@@ -1,0 +1,77 @@
+#! /bin/bash
+#
+# Copyright © 2001 - 2012 Denis Salmanovich denis.salmanovich@gmail.com
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+
+[ -f /etc/denix-colors ] && . /etc/denix-colors
+
+# Check if script runs under root
+if ! [ "$(whoami)" = "root" ]; then
+    echo "You have to run me with root user priveleges!"
+    exit 1
+fi
+
+case $(uname -i) in
+    i386)
+	jre_link="http://download.oracle.com/otn-pub/java/jdk/7u5-b05/jre-7u5-linux-i586.rpm"
+	alt_plugin_inst_cmd="alternatives --install /usr/lib/mozilla/plugins/libjavaplugin.so libjavaplugin.so /usr/java/default/lib/i386/libnpjp2.so 20000"
+	alt_plugin_name="/usr/java/default/lib/i386/libnpjp2.so"
+	alt_plugin_config_cmd="alternatives --config libjavaplugin.so"
+	alt_java_inst_cmd="alternatives --install /usr/bin/java java /usr/java/default/bin/java 20000"
+	alt_java_name="/usr/java/default/bin/java"
+	alt_java_config_cmd="alternatives --config java"
+	;;
+    x86_64)
+	jre_link="http://download.oracle.com/otn-pub/java/jdk/7u5-b05/jre-7u5-linux-x64.rpm"
+	alt_plugin_inst_cmd="alternatives --install /usr/lib64/mozilla/plugins/libjavaplugin.so libjavaplugin.so.x86_64 /usr/java/default/lib/amd64/libnpjp2.so 20000"
+	alt_plugin_name="/usr/java/default/lib/amd64/libnpjp2.so"
+	alt_plugin_config_cmd="alternatives --config libjavaplugin.so.x86_64"
+	alt_java_inst_cmd="alternatives --install /usr/bin/java java /usr/java/default/bin/java 20000"
+	alt_java_name="/usr/java/default/bin/java"
+	alt_java_config_cmd="alternatives --config java"
+	;;
+    *)
+	echo "Unsupported architecture!"
+	exit 0
+	;;
+esac
+
+$color_Purple
+echo "Donloading java..."
+if ! wget --directory-prefix=/tmp --output-document=/tmp/jre.rpm --no-cookies --header "Cookie: gpw_e24=http%3A%2F%2Fwww.oracle.com" ${jre_link}; then
+    echo "Error"
+    echo "Check your internet connection, and try again!"
+    exit 1
+fi
+$color_Off
+
+$color_Cyan
+echo "Installing java package..."
+rpm -Uvh /tmp/jre.rpm >/dev/null 2>&1
+rm -rf /tmp/jre.rpm >/dev/null 2>&1
+$color_Off
+
+echo "JRE configuration..."
+${alt_java_inst_cmd}
+java_selection=`echo | ${alt_java_config_cmd} | grep ${alt_java_name} | cut -b4`
+(echo ${java_selection};) | ${alt_java_config_cmd} >/dev/null 2>&1
+
+echo "Browser plugin configuration..."
+${alt_plugin_install_cmd}
+java_plugin_selection=`echo | ${alt_plugin_config_cmd} | grep ${alt_plugin_name} | cut -b4`
+(echo ${java_plugin_selection};) | ${alt_plugin_config_cmd} >/dev/null 2>&1
+
+echo "Install date: `date`" > /var/lib/system-setup-tools/java
+$color_BGreen
+echo "Setup completed!"
+$color_Off
