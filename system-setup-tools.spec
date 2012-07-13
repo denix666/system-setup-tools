@@ -29,6 +29,11 @@ rm -rf %{_builddir}/%{name}
 %files
 %defattr(-,root,root,-)
 
+%attr(0755,root,root) /usr/share/system-setup-tools/system-setup-autologin
+%attr(0755,root,root) /usr/bin/system-setup-autologin
+%attr(0644,root,root) /etc/pam.d/system-setup-autologin
+%attr(0644,root,root) /etc/security/console.apps/system-setup-autologin
+
 %attr(0755,root,root) /usr/share/system-setup-tools/system-setup-dhcpd
 %attr(0755,root,root) /usr/bin/system-setup-dhcpd
 %attr(0644,root,root) /etc/pam.d/system-setup-dhcpd

@@ -21,16 +21,39 @@ if ! [ "$(whoami)" = "root" ]; then
     exit 1
 fi
 
+# Search the users in the system
 found_user=`cat /etc/passwd | awk -F':' '$3 >999' | grep '/bin/bash' | awk -F':' '{print $1}' | head -1`
 
+if [ "${found_user}" = "" ]; then
+    $color_Red
+    echo
+    echo "Not found regular users in your system!"
+    echo "Add user, and then run me again!"
+    echo "Exiting..."
+    echo
+    $color_Off
+    exit 1
+fi
+
 while [ "${auto_login}" = "" ]; do
+    $color_Green
     echo -n "Enter username for autologin [${found_user}]: "; read auto_login
+    $color_Off
     if [ "${auto_login}" = "" ]; then
 	auto_login="${found_user}"
     fi
-    
+    # Check if user exists in the system
+    result=`cat /etc/passwd | grep '/bin/bash' | cut -d':' -f1 | grep ${auto_login}`
+    if [ "${result}" = "" ]; then
+	echo "The user ${auto_login} not present or disabled in your system!"
+	echo "Please choose other user!"
+	auto_login=""
+    fi
 done
 
+$color_BYellow
+echo
+echo -n "Installing autologin for user ${auto_login}..."
 
 result=`cat /tmp/custom.conf | grep ^'AutomaticLogin=' | cut -d'=' -f1`
 if [ "$result" = "AutomaticLogin" ]; then
@@ -39,7 +62,6 @@ else
     sed -i '/^\[daemon\]/a AutomaticLogin='$auto_login /tmp/custom.conf
 fi
 
-
 result=`cat /tmp/custom.conf | grep ^'AutomaticLoginEnable=' | cut -d'=' -f1`
 if [ "$result" = "AutomaticLoginEnable" ]; then
     sed -i 's/^AutomaticLoginEnable=.*$/AutomaticLoginEnable=true/g' /tmp/custom.conf
@@ -47,3 +69,24 @@ else
     sed -i '/^\[daemon\]/a AutomaticLoginEnable=true' /tmp/custom.conf
 fi
 
+$color_BGreen
+echo " done"
+$color_Off
+
+$color_White
+echo
+echo -n "To remove autologin please run: "
+$color_BRed
+echo "system-setup-autologin --remove"
+echo
+$color_Off
+
+# Create installation signature
+if ! [ -d /var/lib/system-setup-tools ]; then
+	install -d /var/lib/system-setup-tools
+fi
+echo "Install date: `date`" > /var/lib/system-setup-tools/autologin
+
+$color_BGreen
+echo "Setup completed!"
+$color_Off
