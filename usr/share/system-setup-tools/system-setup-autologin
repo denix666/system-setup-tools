@@ -21,6 +21,36 @@ if ! [ "$(whoami)" = "root" ]; then
     exit 1
 fi
 
+# MDM custom.conf variable
+mdm_custom="/etc/mdm/custom.conf"
+
+# Check which display manager in use
+if ! [ -f ${mdm_custom} ]; then
+    echo "MDM display manager is not found."
+    echo "Exiting..."
+    exit 0
+else
+    [ -f /etc/sysconfig/desktop ] && . /etc/sysconfig/desktop
+    if ! [ "$DISPLAYMANAGER" = "/usr/sbin/mdm" ]; then
+	echo "MDM desktop installed, but not in use."
+	echo "Please switch to MDM display manager, and run me again."
+	echo "Exiting..."
+	exit 0
+    fi
+fi
+
+# Get the user arguments
+########################
+for i in $*; do
+    case $i in
+	--remove)
+	    # Remove autologin configuration and exit
+	    sed -i '/^AutomaticLogin.*$/d' ${mdm_custom}
+	    exit 0
+	    ;;
+    esac
+done
+
 # Search the users in the system
 found_user=`cat /etc/passwd | awk -F':' '$3 >999' | grep '/bin/bash' | awk -F':' '{print $1}' | head -1`
 
@@ -55,18 +85,18 @@ $color_BYellow
 echo
 echo -n "Installing autologin for user ${auto_login}..."
 
-result=`cat /tmp/custom.conf | grep ^'AutomaticLogin=' | cut -d'=' -f1`
+result=`cat ${mdm_custom} | grep ^'AutomaticLogin=' | cut -d'=' -f1`
 if [ "$result" = "AutomaticLogin" ]; then
-    sed -i 's/^AutomaticLogin=.*$/AutomaticLogin='$auto_login'/g' /tmp/custom.conf
+    sed -i 's/^AutomaticLogin=.*$/AutomaticLogin='$auto_login'/g' ${mdm_custom}
 else
-    sed -i '/^\[daemon\]/a AutomaticLogin='$auto_login /tmp/custom.conf
+    sed -i '/^\[daemon\]/a AutomaticLogin='$auto_login ${mdm_custom}
 fi
 
-result=`cat /tmp/custom.conf | grep ^'AutomaticLoginEnable=' | cut -d'=' -f1`
+result=`cat ${mdm_custom} | grep ^'AutomaticLoginEnable=' | cut -d'=' -f1`
 if [ "$result" = "AutomaticLoginEnable" ]; then
-    sed -i 's/^AutomaticLoginEnable=.*$/AutomaticLoginEnable=true/g' /tmp/custom.conf
+    sed -i 's/^AutomaticLoginEnable=.*$/AutomaticLoginEnable=true/g' ${mdm_custom}
 else
-    sed -i '/^\[daemon\]/a AutomaticLoginEnable=true' /tmp/custom.conf
+    sed -i '/^\[daemon\]/a AutomaticLoginEnable=true' ${mdm_custom}
 fi
 
 $color_BGreen
