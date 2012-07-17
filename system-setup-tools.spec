@@ -1,6 +1,6 @@
 Name:		system-setup-tools
 Version:	18.5
-Release:	1%{?dist}
+Release:	2%{?dist}
 Summary:	Setup scripts by -=DeN=-
 Group:		Scripts
 License:	GPL
@@ -48,6 +48,11 @@ rm -rf %{_builddir}/%{name}
 %attr(0755,root,root) /usr/bin/system-setup-java
 %attr(0644,root,root) /etc/pam.d/system-setup-java
 %attr(0644,root,root) /etc/security/console.apps/system-setup-java
+
+%attr(0755,root,root) /usr/share/system-setup-tools/system-setup-kvm
+%attr(0755,root,root) /usr/bin/system-setup-kvm
+%attr(0644,root,root) /etc/pam.d/system-setup-kvm
+%attr(0644,root,root) /etc/security/console.apps/system-setup-kvm
 
 %attr(0755,root,root) /usr/share/system-setup-tools/system-setup-mysql
 %attr(0755,root,root) /usr/bin/system-setup-mysql

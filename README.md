@@ -8,6 +8,7 @@ system-setup-tools - is a set of the scripts to easy setup, installation and con
 - `system-setup-dhcpd` (Setup DHCP server)
 - `system-setup-http` (Setup apachee server)
 - `system-setup-java` (Install Oracle JRE)
+- `system-setup-kvm` (Install KVM hypervisor)
 - `system-setup-mysql` (Setup MYSQL server)
 - `system-setup-named` (Setup DNS server)
 - `system-setup-pptpd` (Setup PPTP server)
