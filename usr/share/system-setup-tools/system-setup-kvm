@@ -36,7 +36,7 @@ else
 fi
 
 # Install kvm packages
-pk="qemu-kvm libvirt-daemon-kvm virt-manager libvirt qemu kvm"
+pk="qemu-kvm libvirt-daemon-kvm virt-manager libvirt qemu kvm openssh-askpass"
 for i in $pk; do
     if ! rpm -q $i >/dev/null 2>&1; then
 	required_packages="$required_packages $i"
