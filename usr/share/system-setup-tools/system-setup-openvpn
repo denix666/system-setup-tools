@@ -1,0 +1,144 @@
+#! /bin/bash
+#
+# Copyright © 2001 - 2012 Denis Salmanovich denis.salmanovich@gmail.com
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+
+[ -f /etc/denix-colors ] && . /etc/denix-colors
+
+# Check if script runs under root
+if ! [ "$(whoami)" = "root" ]; then
+    echo "You have to run me with root user priveleges!"
+    exit 1
+fi
+
+# Check the system version
+[ -f /etc/fedora-release ] && system_version=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
+case ${system_version} in
+    14|15|16|17)
+    echo "Fedora version detected: ${system_version} - supported!"
+    ;;
+
+    *)
+    echo "Unsupported system. Exiting."
+    exit 1
+    ;;
+esac
+
+# Install required packages
+pk="openvpn"
+for i in $pk; do
+	if ! rpm -q $i >/dev/null 2>&1; then
+		required_packages="$required_packages $i"
+	fi
+done
+
+if ! [ "$required_packages" = "" ]; then
+	echo "Some packages not found on your system. Trying to download and install..."
+	if ! yum -y install $required_packages; then
+		echo "Download failed! Check internet connection and try again!"
+		exit 1
+	else
+		echo "Installation success!"
+	fi
+fi
+
+# Ask for network device
+while [ "${IFACE}" = "" ]; do
+    case ${system_version} in
+	17)
+	    FOUND_IFACE=`ifconfig -a | sed 's/[: ].*//;/^\(lo\|\)$/d' | head -1`
+	    ;;
+	*)
+	    FOUND_IFACE=`ifconfig -a | sed 's/[ \t].*//;/^\(lo\|\)$/d' | head -1`
+	    ;;
+    esac
+    $color_Cyan
+    echo -n "What is your primary network interface [${FOUND_IFACE}]?"; read IFACE
+    $color_Off
+    if [ "${IFACE}" = "" ]; then
+	IFACE="${FOUND_IFACE}"
+    fi
+    if ! ifconfig ${IFACE} >/dev/null 2>&1; then
+	$color_Red
+	echo "Error fetching network device: ${IFACE}"
+	$color_Off
+	IFACE=""
+    fi
+    if ifconfig ${IFACE} | head -2 | tail -1 | grep "BROADCAST" >/dev/null 2>&1; then
+	$color_Red
+	echo "Error fetching IP address for device: ${IFACE}"
+	$color_Off
+	IFACE=""
+    fi
+done
+
+# Check, if /etc/openvpn/multi-user.conf file already exists, then backup it
+if [ -f /etc/openvpn/multi-user.conf ]; then
+    cp /etc/openvpn/multi-user.conf /etc/openvpn/multi-user.conf.back.`date +%Y%m%d%H%M`
+fi
+
+# Check, if /etc/openvpn/static.key file already exists, then backup it
+if [ -f /etc/openvpn/static.key ]; then
+    cp /etc/openvpn/static.key /etc/openvpn/static.key.back.`date +%Y%m%d%H%M`
+fi
+
+# Discovery system configuration
+IPADDR=`ifconfig ${IFACE} | head -2 | tail -1 | awk '{print $2}' | cut -d":" -f2`
+LOCAL_IP=`echo ${IPADDR} | awk -F. '{print $1"."$2"."$3".221"}'`
+EXTERNAL_IP=`curl -s ifconfig.me`
+REMOTE_RANGE=`echo ${IPADDR} | awk -F. '{print $1"."$2"."$3".222 $1"."$2"."$3".230"}'`
+CLIENT_RANGE=`echo ${IPADDR} | awk -F. '{print $1"."$2"."$3".230 $1"."$2"."$3".222"}'`
+
+# Creating /etc/openvpn/multi-user.conf config
+cat > /etc/openvpn/multi-user.conf << EOF
+dev tun
+ifconfig ${REMOTE_RANGE}
+secret /etc/openvpn/static.key
+EOF
+
+# Creating /etc/openvpn/client.conf config
+cat > /etc/openvpn/multi-user.conf << EOF
+remote ${EXTERNAL_IP}
+dev tun
+ifconfig ${CLIENT_RANGE}
+secret /etc/openvpn/static.key
+EOF
+
+# Generate static key
+openvpn --genkey --secret /etc/openvpn/static.key
+
+# Enable daemon
+systemctl enable openvpn@.service
+
+# Start daemons
+systemctl start openvpn@multi-user.service
+
+# Create installation signature
+if ! [ -d /var/lib/system-setup-tools ]; then
+	install -d /var/lib/system-setup-tools
+fi
+echo "Install date: `date`" > /var/lib/system-setup-tools/openvpn
+
+# Print info
+$color_Purple
+echo "Do not forget to open port 1194-udp in your firewall!"
+echo
+echo "Copy the secret key to your client computer: scp /etc/openvpn/static.key root@XXX.XXX.XXX.XXX:/etc/openvpn"
+echo "Copy client configuration to your client computer: scp /etc/openvpn/client.conf root@XXX.XXX.XXX.XXX:/etc/openvpn"
+echo 
+echo "Start connection on the client computer with command: openvpn --config /etc/openvpn/client.conf"
+echo
+echo
+$color_BGreen
+echo "Setup completed!"
+$color_Off

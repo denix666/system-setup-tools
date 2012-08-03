@@ -11,6 +11,7 @@ system-setup-tools - is a set of the scripts to easy setup, installation and con
 - `system-setup-kvm` (Install KVM hypervisor)
 - `system-setup-mysql` (Setup MYSQL server)
 - `system-setup-named` (Setup DNS server)
+- `system-setup-openvpn` (Setup OpenVPN server)
 - `system-setup-pptpd` (Setup PPTP server)
 - `system-setup-proftpd` (Setup FTP server)
 - `system-setup-samba` (Setup samba server)

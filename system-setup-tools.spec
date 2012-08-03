@@ -1,6 +1,6 @@
 Name:		system-setup-tools
 Version:	18.5
-Release:	3%{?dist}
+Release:	4%{?dist}
 Summary:	Setup scripts by -=DeN=-
 Group:		Scripts
 License:	GPL
@@ -63,6 +63,11 @@ rm -rf %{_builddir}/%{name}
 %attr(0755,root,root) /usr/bin/system-setup-named
 %attr(0644,root,root) /etc/pam.d/system-setup-named
 %attr(0644,root,root) /etc/security/console.apps/system-setup-named
+
+%attr(0755,root,root) /usr/share/system-setup-tools/system-setup-openvpn
+%attr(0755,root,root) /usr/bin/system-setup-openvpn
+%attr(0644,root,root) /etc/pam.d/system-setup-openvpn
+%attr(0644,root,root) /etc/security/console.apps/system-setup-openvpn
 
 %attr(0755,root,root) /usr/share/system-setup-tools/system-setup-pptpd
 %attr(0755,root,root) /usr/bin/system-setup-pptpd
