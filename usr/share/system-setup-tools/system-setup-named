@@ -127,6 +127,13 @@ if [ -f /etc/named.conf ]; then
 	mv /etc/named.conf /etc/named.conf.back.`date +%Y%m%d%H%M`
 fi
 
+# Backup old rndc key
+if [ -f /etc/rndc.key ]; then
+    mv /etc/rndc.key /etc/rndc.key.back.`date +%Y%m%d%H%M`
+fi
+
+# Generate new rndc key
+rndc-confgen -ac /etc/rndc.key
 
 # Creating new configuration file
 cat > /etc/named.conf << EOF
