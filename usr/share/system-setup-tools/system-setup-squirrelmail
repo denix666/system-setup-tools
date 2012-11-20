@@ -77,6 +77,14 @@ EOF
 # Restart httpd server
 service httpd reload >/dev/null 2>&1
 
+$color_Green
+echo "The squirrelmail is successfully installed!"
+echo -n "Do you want to start the squirrelmail configuration wizard? (Y/n)?"; read USERINPUT
+$color_Off
+if [ "${USERINPUT}" = "" -o "${USERINPUT}" = "y" -o "${USERINPUT}" = "Y" ]; then
+    /usr/share/squirrelmail/config/conf.pl
+fi
+
 # Create installation signature
 if ! [ -d /var/lib/system-setup-tools ]; then
 	install -d /var/lib/system-setup-tools
