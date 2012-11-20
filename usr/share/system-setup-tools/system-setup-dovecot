@@ -1,0 +1,136 @@
+#! /bin/bash
+#
+# Copyright © 2001 - 2012 Denis Salmanovich denis.salmanovich@gmail.com
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+
+[ -f /etc/denix-colors ] && . /etc/denix-colors
+
+# Check if script runs under root
+if ! [ "$(whoami)" = "root" ]; then
+    echo "You have to run me with root user priveleges!"
+    exit 1
+fi
+
+# Check system version
+[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
+
+case ${system_ver} in
+    17)
+        dovecot_config="/etc/dovecot/dovecot.conf"
+	;;
+    *)
+	dovecot_config="/etc/dovecot.conf"
+	;;
+esac
+
+
+# Stop the services for installation
+service dovecot stop >/dev/null 2>&1
+
+# Install required packages
+pk="dovecot"
+for i in $pk; do
+    if ! rpm -q $i >/dev/null 2>&1; then
+	required_packages="$required_packages $i"
+    fi
+done
+
+if ! [ "$required_packages" = "" ]; then
+    $color_Purple
+    echo "Some packages not found on your system. Trying to download and install..."
+    if ! yum -y install $required_packages; then
+        $color_BRed
+        echo "Download failed! Check internet connection and try again!"
+        $color_Off
+        exit 1
+    else
+        $color_Green
+        echo "Installation success!"
+        $color_Off
+    fi
+fi
+
+# Discovery system configuration
+DOMAINNAME=`hostname`
+
+# Check, if configuration file already exists, then backup it
+if [ -f ${dovecot_config} ]; then
+    cp ${dovecot_config} ${dovecot_config}.back.`date +%Y%m%d%H%M`
+fi
+
+# Create default configuration file
+cat > ${dovecot_config} << EOF
+auth_mechanisms = plain
+disable_plaintext_auth = no
+mail_location = maildir:~/.maildir
+protocols = imap
+ssl_cert = </etc/pki/dovecot/certs/ca.crt
+ssl_key = </etc/pki/dovecot/private/ca.key
+
+passdb {
+    driver = pam
+}
+
+userdb {
+    driver = passwd
+}
+
+EOF
+
+# Check, if server certificate already exists, then backup it
+if [ -f /etc/pki/dovecot/certs/ca.crt ]; then
+    cp /etc/pki/dovecot/certs/ca.crt /etc/pki/dovecot/certs/ca.crt.back.`date +%Y%m%d%H%M`
+fi
+
+# Check, if server key already exists, then backup it
+if [ -f /etc/pki/dovecot/private/ca.key ]; then
+    cp /etc/pki/dovecot/private/ca.key /etc/pki/dovecot/private/ca.key.back.`date +%Y%m%d%H%M`
+fi
+
+# Check, if server csr already exists, then backup it
+if [ -f /etc/pki/dovecot/private/ca.csr ]; then
+    cp /etc/pki/dovecot/private/ca.csr /etc/pki/dovecot/private/ca.csr.back.`date +%Y%m%d%H%M`
+fi
+
+# Generate the server key
+echo "Generating new server key..."
+openssl genrsa -out /etc/pki/dovecot/private/ca.key 1024 >/dev/null 2>&1
+chmod 600 /etc/pki/dovecot/private/ca.key
+
+# Generate the server certificate sign request
+echo "Generating new server sign request..."
+openssl req -new -key /etc/pki/dovecot/private/ca.key -out /etc/pki/dovecot/private/ca.csr -batch >/dev/null 2>&1
+chmod 600 /etc/pki/dovecot/private/ca.csr
+
+# Generate th server self signed certificate
+echo "Generating new server self signed certificate..."
+openssl x509 -req -days 365 -in /etc/pki/dovecot/private/ca.csr -signkey /etc/pki/dovecot/private/ca.key -out /etc/pki/dovecot/certs/ca.crt >/dev/null 2>&1
+chmod 600 /etc/pki/dovecot/certs/ca.crt
+
+# Enable dovecot daemon
+chkconfig dovecot on
+
+# Start dovecot server
+service dovecot start
+
+# Create installation signature
+if ! [ -d /var/lib/system-setup-tools ]; then
+    install -d /var/lib/system-setup-tools
+fi
+echo "Install date: `date`" > /var/lib/system-setup-tools/dovecot
+
+$color_Purple
+echo "Do not forget to open port 143 tcp in your firewall!"
+$color_BGreen
+echo "Setup completed!"
+$color_Off

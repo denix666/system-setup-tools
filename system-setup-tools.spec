@@ -1,6 +1,6 @@
 Name:		system-setup-tools
-Version:	18.5
-Release:	7%{?dist}
+Version:	18.6
+Release:	1%{?dist}
 Summary:	Setup scripts by -=DeN=-
 Group:		Scripts
 License:	GPL
@@ -38,6 +38,12 @@ rm -rf %{_builddir}/%{name}
 %attr(0755,root,root) /usr/bin/system-setup-dhcpd
 %attr(0644,root,root) /etc/pam.d/system-setup-dhcpd
 %attr(0644,root,root) /etc/security/console.apps/system-setup-dhcpd
+
+%attr(0755,root,root) /usr/share/system-setup-tools/system-setup-dovecot
+%attr(0755,root,root) /usr/bin/system-setup-dovecot
+%attr(0644,root,root) /etc/pam.d/system-setup-dovecot
+%attr(0644,root,root) /etc/security/console.apps/system-setup-dovecot
+
 
 %attr(0755,root,root) /usr/share/system-setup-tools/system-setup-httpd
 %attr(0755,root,root) /usr/bin/system-setup-httpd
