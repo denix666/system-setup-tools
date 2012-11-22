@@ -1,0 +1,176 @@
+#! /bin/bash
+#
+# Copyright © 2001 - 2012 Denis Salmanovich denis.salmanovich@gmail.com
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+
+[ -f /etc/denix-colors ] && . /etc/denix-colors
+
+# Check if script runs under root
+if ! [ "$(whoami)" = "root" ]; then
+    echo "You have to run me with root user priveleges!"
+    exit 1
+fi
+
+# Check system version
+[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
+
+# Stop the services for installation
+systemctl stop postfix.service >/dev/null 2>&1
+systemctl stop saslauthd.service >/dev/null 2>&1
+
+# Install required packages
+pk="postfix cyrus-sasl"
+for i in $pk; do
+    if ! rpm -q $i >/dev/null 2>&1; then
+	required_packages="$required_packages $i"
+    fi
+done
+
+if ! [ "$required_packages" = "" ]; then
+    $color_Purple
+    echo "Some packages not found on your system. Trying to download and install..."
+    if ! yum -y install $required_packages; then
+        $color_BRed
+        echo "Download failed! Check internet connection and try again!"
+        $color_Off
+        exit 1
+    else
+        $color_Green
+        echo "Installation success!"
+        $color_Off
+    fi
+fi
+
+
+# Discovery system configuration
+DOMAINNAME=`hostname`
+
+# Check, if main.cf file already exists, then backup it
+if [ -f /etc/postfix/main.cf ]; then
+    cp /etc/postfix/main.cf /etc/postfix/main.cf.back.`date +%Y%m%d%H%M`
+fi
+
+# Create main.cf file
+cat > /etc/postfix/main.cf << EOF
+# Main configuration
+####################
+mydomain = ${DOMAINNAME}
+myhostname = ${DOMAINNAME}
+myorigin = \$mydomain
+queue_directory = /var/spool/postfix
+command_directory = /usr/sbin
+daemon_directory = /usr/libexec/postfix
+data_directory = /var/lib/postfix
+mail_owner = postfix
+inet_interfaces = all
+mydestination = \$myhostname, localhost.\$mydomain, localhost, \$mydomain
+message_size_limit = 8242880
+mailbox_size_limit = 104857600
+home_mailbox = .maildir/
+smtpd_banner = \$myhostname ESMTP
+unknown_local_recipient_reject_code = 550
+alias_maps = hash:/etc/aliases
+alias_database = hash:/etc/aliases
+sendmail_path = /usr/sbin/sendmail.postfix
+newaliases_path = /usr/bin/newaliases.postfix
+mailq_path = /usr/bin/mailq.postfix
+setgid_group = postdrop
+html_directory = no
+inet_protocols = ipv4
+
+# TLS - SMTP AUTH
+#################
+disable_vrfy_command = yes
+smtpd_use_tls = yes
+smtpd_tls_auth_only = yes
+tls_random_source = dev:/dev/urandom
+smtpd_tls_cert_file = /etc/postfix/cert.pem
+smtpd_tls_key_file = /etc/postfix/key.pem
+smtpd_sasl_auth_enable = yes
+smtpd_sasl_security_options = noanonymous
+broken_sasl_auth_clients = yes
+
+# Add some security
+###################
+smtpd_recipient_restrictions = permit_sasl_authenticated, permit_mynetworks, reject_unauth_destination
+EOF
+
+
+# Check, if master.cf file already exists, then backup it
+if [ -f /etc/postfix/master.cf ]; then
+    cp /etc/postfix/master.cf /etc/postfix/master.cf.back.`date +%Y%m%d%H%M`
+fi
+
+# Create master.cf file
+cat > /etc/postfix/master.cf << EOF
+smtp      inet  n       -       n       -       -       smtpd
+pickup    fifo  n       -       n       60      1       pickup
+cleanup   unix  n       -       n       -       0       cleanup
+qmgr      fifo  n       -       n       300     1       qmgr
+tlsmgr    unix  -       -       n       1000?   1       tlsmgr
+rewrite   unix  -       -       n       -       -       trivial-rewrite
+bounce    unix  -       -       n       -       0       bounce
+defer     unix  -       -       n       -       0       bounce
+trace     unix  -       -       n       -       0       bounce
+verify    unix  -       -       n       -       1       verify
+flush     unix  n       -       n       1000?   0       flush
+proxymap  unix  -       -       n       -       -       proxymap
+proxywrite unix -       -       n       -       1       proxymap
+smtp      unix  -       -       n       -       -       smtp
+relay     unix  -       -       n       -       -       smtp
+showq     unix  n       -       n       -       -       showq
+error     unix  -       -       n       -       -       error
+retry     unix  -       -       n       -       -       error
+discard   unix  -       -       n       -       -       discard
+local     unix  -       n       n       -       -       local
+virtual   unix  -       n       n       -       -       virtual
+lmtp      unix  -       -       n       -       -       lmtp
+anvil     unix  -       -       n       -       1       anvil
+scache    unix  -       -       n       -       1       scache
+
+EOF
+
+
+# Disable sendmail and enable postfix
+if rpm -q sendmail >/dev/null 2>&1; then
+    systemctl stop sendmail.service >/dev/null 2>&1
+    chkconfig sendmail off >/dev/null 2>&1
+fi
+chkconfig postfix on >/dev/null 2>&1
+
+# Check wich number have postfix agent
+POSTFIX_AGENT=`echo | alternatives --config mta | grep sendmail.postfix | cut -b4`
+
+# Set mail agent
+(echo ${POSTFIX_AGENT};) | alternatives --config mta >/dev/null 2>&1
+
+# Generate SSL certificates
+echo "Generating SSL certificates..."
+openssl req -new -x509 -nodes -out /etc/postfix/cert.pem -keyout /etc/postfix/key.pem -days 3650 -batch >/dev/null 2>&1
+chmod 600 /etc/postfix/*.pem
+
+# Start daemons
+systemctl start postfix.service
+systemctl start saslauthd.service
+
+# Create installation signature
+if ! [ -d /var/lib/system-setup-tools ]; then
+    install -d /var/lib/system-setup-tools
+fi
+echo "Install date: `date`" > /var/lib/system-setup-tools/postfix
+
+$color_Purple
+echo "Do not forget to open port 25 tcp in your firewall!"
+$color_BGreen
+echo "Setup completed!"
+$color_Off
