@@ -1,0 +1,91 @@
+#! /bin/bash
+#
+# Copyright © 2001 - 2012 Denis Salmanovich denis.salmanovich@gmail.com
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+
+[ -f /etc/denix-colors ] && . /etc/denix-colors
+
+# Check if script runs under root
+if ! [ "$(whoami)" = "root" ]; then
+    echo "You have to run me with root user priveleges!"
+    exit 1
+fi
+
+# Install required packages
+pk="b43-fwcutter"
+for i in $pk; do
+    if ! rpm -q $i >/dev/null 2>&1; then
+	required_packages="$required_packages $i"
+    fi
+done
+
+if ! [ "$required_packages" = "" ]; then
+    $color_Purple
+    echo "Some packages not found on your system. Trying to download and install..."
+    if ! yum -y install $required_packages; then
+        $color_BRed
+        echo "Download failed! Check internet connection and try again!"
+        $color_Off
+        exit 1
+    else
+        $color_Green
+        echo "Installation success!"
+        $color_Off
+    fi
+fi
+
+FIRMWARE_FILE="broadcom-wl-4.150.10.5.tar.bz2"
+FIRMWARE_DIR="broadcom-wl-4.150.10.5"
+
+if lspci | grep BCM43 >/dev/null 2>&1; then
+    echo
+    echo "Found Broadcom adapter!"
+    echo "Trying to download latest firmware for it..."
+    rm -rf /tmp/${FIRMWARE_FILE}
+    if ! wget --output-document=/tmp/${FIRMWARE_FILE} http://downloads.openwrt.org/sources/${FIRMWARE_FILE}; then
+	echo "Error"
+	echo "Check your connection, or try again later"
+	exit 1
+    fi
+    pushd /tmp >/dev/null 2>&1
+    echo -n "Extracting firmware... "
+    if tar xjf ${FIRMWARE_FILE} >/dev/null 2>&1; then
+	echo "done."
+    else
+	echo "error. Exiting..."
+	exit 1
+    fi
+    cd /tmp/${FIRMWARE_DIR}/driver
+    b43-fwcutter -w /lib/firmware wl_apsta_mimo.o
+    echo
+    echo "All done!"
+    echo
+    popd >/dev/null 2>&1
+else
+    echo "Broadcom adapter not found in your system!"
+fi
+
+
+# Create installation signature
+if ! [ -d /var/lib/system-setup-tools ]; then
+    install -d /var/lib/system-setup-tools
+fi
+echo "Install date: `date`" > /var/lib/system-setup-tools/broadcom
+
+# Print info
+$color_Purple
+echo "You need to reboot your computer!"
+echo
+$color_BGreen
+echo "Setup completed!"
+$color_Off

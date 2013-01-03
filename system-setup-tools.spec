@@ -1,6 +1,6 @@
 Name:		system-setup-tools
 Version:	18.6
-Release:	2%{?dist}
+Release:	3%{?dist}
 Summary:	Setup scripts by -=DeN=-
 Group:		Scripts
 License:	GPL
@@ -33,6 +33,11 @@ rm -rf %{_builddir}/%{name}
 %attr(0755,root,root) /usr/bin/system-setup-autologin
 %attr(0644,root,root) /etc/pam.d/system-setup-autologin
 %attr(0644,root,root) /etc/security/console.apps/system-setup-autologin
+
+%attr(0755,root,root) /usr/share/system-setup-tools/system-setup-broadcom
+%attr(0755,root,root) /usr/bin/system-setup-broadcom
+%attr(0644,root,root) /etc/pam.d/system-setup-broadcom
+%attr(0644,root,root) /etc/security/console.apps/system-setup-broadcom
 
 %attr(0755,root,root) /usr/share/system-setup-tools/system-setup-dhcpd
 %attr(0755,root,root) /usr/bin/system-setup-dhcpd
