@@ -34,7 +34,7 @@ if ! [ -f /var/lib/system-setup-tools/named ]; then
 fi
 
 # Install required packages
-pk="dhcp"
+pk="dhcp bind"
 for i in $pk; do
 	if ! rpm -q $i >/dev/null 2>&1; then
 		required_packages="$required_packages $i"
@@ -62,7 +62,7 @@ fi
 # Ask for network device
 while [ "${IFACE}" = "" ]; do
     case ${system_ver} in
-	17)
+	17|18)
 	    FOUND_IFACE=`ifconfig -a | sed 's/[: ].*//;/^\(lo\|\)$/d' | head -1`
 	    ;;
 	*)
@@ -75,17 +75,19 @@ while [ "${IFACE}" = "" ]; do
     if [ "${IFACE}" = "" ]; then
 	IFACE="${FOUND_IFACE}"
     fi
-    if ! ifconfig ${IFACE} >/dev/null 2>&1; then
+    if ! ip addr show ${IFACE} >/dev/null 2>&1; then
 	$color_Red
 	echo "Error fetching network device: ${IFACE}"
 	$color_Off
 	IFACE=""
     fi
-    if ifconfig ${IFACE} | head -2 | tail -1 | grep "BROADCAST" >/dev/null 2>&1; then
-	$color_Red
-	echo "Error fetching IP address for device: ${IFACE}"
-	$color_Off
-	IFACE=""
+    if ! [ -z ${IFACE} ]; then
+	if ! ip addr show ${IFACE} | grep "inet " >/dev/null 2>&1; then
+	    $color_Red
+	    echo "Error fetching IP address for device: ${IFACE}"
+	    $color_Off
+	    IFACE=""
+	fi
     fi
 done
 
@@ -155,6 +157,13 @@ subnet $NETWORK netmask $NETMASK {
     }
 }
 EOF
+
+# Generate new rndc key if not found
+if ! [ -f /etc/rndc.key ]; then
+    echo "Generating /etc/rndc.key"
+    rndc-confgen -ac /etc/rndc.key
+    chown named:named /etc/rndc.key
+fi
 
 # Enable dhcp daemon
 chkconfig dhcpd on

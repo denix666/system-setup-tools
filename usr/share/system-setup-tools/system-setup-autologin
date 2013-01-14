@@ -21,22 +21,14 @@ if ! [ "$(whoami)" = "root" ]; then
     exit 1
 fi
 
-# MDM custom.conf variable
-mdm_custom="/etc/mdm/custom.conf"
+# kdmrc file
+kdmrc_file="/etc/kde/kdm/kdmrc"
 
 # Check which display manager in use
-if ! [ -f ${mdm_custom} ]; then
-    echo "MDM display manager is not found."
+if ! [ -f ${kdmrc_file} ]; then
+    echo "KDM display manager is not found."
     echo "Exiting..."
     exit 0
-else
-    [ -f /etc/sysconfig/desktop ] && . /etc/sysconfig/desktop
-    if ! [ "$DISPLAYMANAGER" = "/usr/sbin/mdm" ]; then
-	echo "MDM desktop installed, but not in use."
-	echo "Please switch to MDM display manager, and run me again."
-	echo "Exiting..."
-	exit 0
-    fi
 fi
 
 # Get the user arguments
