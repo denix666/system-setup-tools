@@ -99,14 +99,7 @@ cat > /etc/httpd/conf.d/userdir.conf << EOF
 <Directory /home/*/.public_html>
     Options Indexes FollowSymLinks Multiviews
     AllowOverride All
-    <Limit GET POST OPTIONS>
-        Order allow,deny
-        Allow from all
-    </Limit>
-    <LimitExcept GET POST OPTIONS>
-        Order deny,allow
-        Deny from all
-    </LimitExcept>
+    Require all granted
 </Directory>
 EOF
 
@@ -122,7 +115,6 @@ EOF
 # Create virtual hosts configuration
 cat > /etc/httpd/conf.d/vhosts.conf << EOF
 ServerName ${DOMAINNAME}
-NameVirtualHost *:80
 
 <VirtualHost *:80>
     DocumentRoot /var/www/html
