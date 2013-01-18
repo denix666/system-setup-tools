@@ -9,7 +9,6 @@ system-setup-tools - is a set of the scripts to easy setup, installation and con
 - `system-setup-dovecot` (Setup IMAP server)
 - `system-setup-http` (Setup apachee server)
 - `system-setup-java` (Install Oracle JRE)
-- `system-setup-kvm` (Install KVM hypervisor)
 - `system-setup-mysql` (Setup MYSQL server)
 - `system-setup-named` (Setup DNS server)
 - `system-setup-openvpn` (Setup OpenVPN server)
@@ -19,7 +18,6 @@ system-setup-tools - is a set of the scripts to easy setup, installation and con
 - `system-setup-squirellmail` (Install squirellmail web interface)
 - `system-setup-tftpd` (Setup TFTP boot server)
 - `system-setup-virtualhost` (Add virtual host to apachee configuration)
-- `system-setup-vpnpeer` (Create peer to remote VPN server)
 
 
 Installation
@@ -27,10 +25,10 @@ Installation
 
 **From yum repository:**
 
-Fedora `16,17` - install the denix-x repo:
+Fedora `17,18` - install the denix-x repo:
 
 ```vim
-#rpm -ivh http://fedora.os.vc/yum/base/x1/i386/denix-x-repo-1.0-3.x1.noarch.rpm
+#rpm -ivh http://fedora.os.vc/yum/base/x1/i386/denix-x-repo-xx.x-xx.x1.noarch.rpm
 ```
 and then install the package as regular:
 
