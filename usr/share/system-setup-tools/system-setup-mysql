@@ -22,7 +22,7 @@ if ! [ "$(whoami)" = "root" ]; then
 fi
 
 # Stop the services for installation
-service mysqld stop >/dev/null 2>&1
+systemctl stop mysqld >/dev/null 2>&1
 
 # Install required packages
 pk="mysql-server"
@@ -48,10 +48,10 @@ if ! [ "$required_packages" = "" ]; then
 fi
 
 # Enable mysql daemon
-chkconfig mysqld on
+systemctl enable mysqld >/dev/null 2>&1
 
 # Start mysql server
-service mysqld start
+systemctl start mysqld >/dev/null 2>&1
 
 $color_Green
 mysql_secure_installation

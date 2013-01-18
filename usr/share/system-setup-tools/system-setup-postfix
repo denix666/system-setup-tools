@@ -15,21 +15,28 @@
 
 [ -f /etc/denix-colors ] && . /etc/denix-colors
 
+# Check system version
+[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
+if ! [ $system_ver = "17" -o $system_ver = "18" -o $system_ver = "19" ]; then
+    $color_Red
+    echo "Not supported platform!"
+    echo "Exiting..."
+    $color_Off
+    exit 1
+fi
+
 # Check if script runs under root
 if ! [ "$(whoami)" = "root" ]; then
     echo "You have to run me with root user priveleges!"
     exit 1
 fi
 
-# Check system version
-[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
-
 # Stop the services for installation
 systemctl stop postfix.service >/dev/null 2>&1
 systemctl stop saslauthd.service >/dev/null 2>&1
 
 # Install required packages
-pk="postfix cyrus-sasl"
+pk="postfix cyrus-sasl firewalld"
 for i in $pk; do
     if ! rpm -q $i >/dev/null 2>&1; then
 	required_packages="$required_packages $i"
@@ -159,9 +166,29 @@ echo "Generating SSL certificates..."
 openssl req -new -x509 -nodes -out /etc/postfix/cert.pem -keyout /etc/postfix/key.pem -days 3650 -batch >/dev/null 2>&1
 chmod 600 /etc/postfix/*.pem
 
+# Check filewall ports
+if ! firewall-cmd --permanent --query-service=smtp; then
+    $color_Red
+    echo "The SMTP service port (25/tcp) is closed in your firewall!"
+    $color_Cyan
+    echo -n "Do you want to open it now? (Y/n)?"; read USERINPUT
+    $color_Off
+    if [ "${USERINPUT}" = "" -o "${USERINPUT}" = "y" -o "${USERINPUT}" = "Y" ]; then
+	firewall-cmd --permanent --add-service=smtp
+	firewall-cmd --reload
+	$color_BGreen
+	echo "The SMTP service port (25/tcp) was opened in your firewall!!!"
+	$color_Off
+    else
+	$color_BRed
+	echo "The SMTP service port (25/tcp) was not been opened in your firewall!!!"
+	$color_Off
+    fi
+fi
+
 # Start daemons
-systemctl start postfix.service
-systemctl start saslauthd.service
+systemctl start postfix.service >/dev/null 2>&1
+systemctl start saslauthd.service >/dev/null 2>&1
 
 # Create installation signature
 if ! [ -d /var/lib/system-setup-tools ]; then
@@ -169,8 +196,6 @@ if ! [ -d /var/lib/system-setup-tools ]; then
 fi
 echo "Install date: `date`" > /var/lib/system-setup-tools/postfix
 
-$color_Purple
-echo "Do not forget to open port 25 tcp in your firewall!"
 $color_BGreen
 echo "Setup completed!"
 $color_Off

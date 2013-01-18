@@ -15,6 +15,16 @@
 
 [ -f /etc/denix-colors ] && . /etc/denix-colors
 
+# Check system version
+[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
+if ! [ $system_ver = "17" -o $system_ver = "18" -o $system_ver = "19" ]; then
+    $color_Red
+    echo "Not supported platform!"
+    echo "Exiting..."
+    $color_Off
+    exit 1
+fi
+
 # Check if script runs under root
 if ! [ "$(whoami)" = "root" ]; then
     echo "You have to run me with root user priveleges!"
@@ -22,41 +32,31 @@ if ! [ "$(whoami)" = "root" ]; then
 fi
 
 # Install required packages
-pk="bind"
+pk="bind firewalld"
 for i in $pk; do
-	if ! rpm -q $i >/dev/null 2>&1; then
-		required_packages="$required_packages $i"
-	fi
+    if ! rpm -q $i >/dev/null 2>&1; then
+	required_packages="$required_packages $i"
+    fi
 done
 
 if ! [ "$required_packages" = "" ]; then
-	$color_Purple
-	echo "Some packages not found on your system. Trying to download and install..."
-	if ! yum -y install $required_packages; then
-	    $color_BRed
-	    echo "Download failed! Check internet connection and try again!"
-	    $color_Off
-	    exit 1
-	else
-	    $color_Green
-	    echo "Installation success!"
-	    $color_Off
-	fi
+    $color_Purple
+    echo "Some packages not found on your system. Trying to download and install..."
+    if ! yum -y install $required_packages; then
+	$color_BRed
+	echo "Download failed! Check internet connection and try again!"
+	$color_Off
+	exit 1
+    else
+        $color_Green
+        echo "Installation success!"
+        $color_Off
+    fi
 fi
-
-# Check system version
-[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
 
 # Ask for network device
 while [ "${IFACE}" = "" ]; do
-    case ${system_ver} in
-	17)
-	    FOUND_IFACE=`ifconfig -a | sed 's/[: ].*//;/^\(lo\|\)$/d' | head -1`
-	    ;;
-	*)
-	    FOUND_IFACE=`ifconfig -a | sed 's/[ \t].*//;/^\(lo\|\)$/d' | head -1`
-	    ;;
-    esac
+    FOUND_IFACE=`ifconfig -a | sed 's/[: \t].*//;/^\(lo\|\)$/d' | head -1`
     $color_Cyan
     echo -n "What is your primary network interface [${FOUND_IFACE}]?"; read IFACE
     $color_Off
@@ -69,7 +69,7 @@ while [ "${IFACE}" = "" ]; do
 	$color_Off
 	IFACE=""
     fi
-    if ifconfig ${IFACE} | head -2 | tail -1 | grep "BROADCAST" >/dev/null 2>&1; then
+    if ! ip addr show ${IFACE} | grep "inet " >/dev/null 2>&1; then
 	$color_Red
 	echo "Error fetching IP address for device: ${IFACE}"
 	$color_Off
@@ -120,11 +120,11 @@ MASK=`ipcalc ${NETWORK} ${NETMASK} -p | cut -d= -f2`
 
 
 # Stop the service for installation
-service named stop >/dev/null 2>&1
+systemctl stop named >/dev/null 2>&1
 
 # Backup old configuration file
 if [ -f /etc/named.conf ]; then
-	mv /etc/named.conf /etc/named.conf.back.`date +%Y%m%d%H%M`
+    mv /etc/named.conf /etc/named.conf.back.`date +%Y%m%d%H%M`
 fi
 
 # Backup old rndc key
@@ -133,6 +133,7 @@ if [ -f /etc/rndc.key ]; then
 fi
 
 # Generate new rndc key
+echo "Generating new rndc key..."
 rndc-confgen -ac /etc/rndc.key
 chown named:named /etc/rndc.key
 
@@ -498,11 +499,33 @@ fi
 # Disable IPv6
 echo 'OPTIONS="-4"' > /etc/sysconfig/named
 
+# Check filewall ports
+if ! firewall-cmd --permanent --query-service=dns; then
+    $color_Red
+    echo "The DNS service port (53/tcp) is closed in your firewall!"
+    $color_Cyan
+    echo -n "Do you want to open it now? (Y/n)?"; read USERINPUT
+    $color_Off
+    if [ "${USERINPUT}" = "" -o "${USERINPUT}" = "y" -o "${USERINPUT}" = "Y" ]; then
+	firewall-cmd --permanent --add-service=dns
+	firewall-cmd --reload
+	$color_BGreen
+	echo "The DNS service port (53/tcp) was opened in your firewall!!!"
+	$color_Off
+    else
+	$color_BRed
+	echo "The DNS service port (53/tcp) was not been opened in your firewall!!!"
+	$color_Off
+    fi
+fi
+
 # Enable dns server daemon
-chkconfig named on >/dev/null 2>&1
+echo "Enabling named server..."
+systemctl enable named >/dev/null 2>&1
 
 # Start dns server
-service named start
+echo "Starting named server..."
+systemctl start named >/dev/null 2>&1
 
 # Create installation signature
 if ! [ -d /var/lib/system-setup-tools ]; then
@@ -510,8 +533,6 @@ if ! [ -d /var/lib/system-setup-tools ]; then
 fi
 echo "Install date: `date`" > /var/lib/system-setup-tools/named
 
-$color_Purple
-echo "Do not forget to open port 53 tcp in your firewall!"
 $color_BGreen
 echo "Setup completed!"
 $color_Off

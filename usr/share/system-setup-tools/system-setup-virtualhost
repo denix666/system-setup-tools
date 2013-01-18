@@ -16,6 +16,16 @@
 
 [ -f /etc/denix-colors ] && . /etc/denix-colors
 
+# Check system version
+[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
+if ! [ $system_ver = "17" -o $system_ver = "18" -o $system_ver = "19" ]; then
+    $color_Red
+    echo "Not supported platform!"
+    echo "Exiting..."
+    $color_Off
+    exit 1
+fi
+
 # Check if script runs under root
 if ! [ "$(whoami)" = "root" ]; then
     echo "You have to run me with root user priveleges!"
@@ -46,19 +56,9 @@ if ! [ -f /var/lib/system-setup-tools/httpd ]; then
     fi
 fi
 
-# Check system version
-[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
-
 # Ask for network device
 while [ "${IFACE}" = "" ]; do
-    case ${system_ver} in
-	17)
-	    FOUND_IFACE=`ifconfig -a | sed 's/[: ].*//;/^\(lo\|\)$/d' | head -1`
-	    ;;
-	*)
-	    FOUND_IFACE=`ifconfig -a | sed 's/[ \t].*//;/^\(lo\|\)$/d' | head -1`
-	    ;;
-    esac
+    FOUND_IFACE=`ifconfig -a | sed 's/[: \t].*//;/^\(lo\|\)$/d' | head -1`
     $color_Cyan
     echo -n "What is your primary network interface [${FOUND_IFACE}]?"; read IFACE
     $color_Off
@@ -71,7 +71,7 @@ while [ "${IFACE}" = "" ]; do
 	$color_Off
 	IFACE=""
     fi
-    if ifconfig ${IFACE} | head -2 | tail -1 | grep "BROADCAST" >/dev/null 2>&1; then
+    if ! ip addr show ${IFACE} | grep "inet " >/dev/null 2>&1; then
 	$color_Red
 	echo "Error fetching IP address for device: ${IFACE}"
 	$color_Off
@@ -79,6 +79,7 @@ while [ "${IFACE}" = "" ]; do
     fi
 done
 INT_IPADDR=`ifconfig ${IFACE} | head -2 | tail -1 | awk '{print $2}' | cut -d":" -f2`
+
 
 # Ask for virtual hostname 
 DOMAINNAME=`hostname`
@@ -208,5 +209,5 @@ cat >> /etc/httpd/conf.d/vhosts.conf << EOF
 EOF
 
 # Restart services after changes
-service named restart
-service httpd restart
+systemctl reload named >/dev/null 2>&1
+systemctl reload httpd >/dev/null 2>&1

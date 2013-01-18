@@ -24,7 +24,7 @@ fi
 # Check the system version
 [ -f /etc/fedora-release ] && system_version=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
 case ${system_version} in
-    14|15|16)
+    17|18)
     poptop_link="http://poptop.sourceforge.net/yum/stable/fc${system_version}/pptp-release-current.noarch.rpm"
     ;;
 
@@ -47,7 +47,7 @@ if ! rpm -q "pptp-release" >/dev/null 2>&1; then
 fi
 
 # Install required packages
-pk="pptpd"
+pk="pptpd firewalld"
 for i in $pk; do
 	if ! rpm -q $i >/dev/null 2>&1; then
 		required_packages="$required_packages $i"
@@ -64,19 +64,9 @@ if ! [ "$required_packages" = "" ]; then
 	fi
 fi
 
-# Check system version
-[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
-
 # Ask for network device
 while [ "${IFACE}" = "" ]; do
-    case ${system_ver} in
-	17)
-	    FOUND_IFACE=`ifconfig -a | sed 's/[: ].*//;/^\(lo\|\)$/d' | head -1`
-	    ;;
-	*)
-	    FOUND_IFACE=`ifconfig -a | sed 's/[ \t].*//;/^\(lo\|\)$/d' | head -1`
-	    ;;
-    esac
+    FOUND_IFACE=`ifconfig -a | sed 's/[: \t].*//;/^\(lo\|\)$/d' | head -1`
     $color_Cyan
     echo -n "What is your primary network interface [${FOUND_IFACE}]?"; read IFACE
     $color_Off
@@ -89,13 +79,16 @@ while [ "${IFACE}" = "" ]; do
 	$color_Off
 	IFACE=""
     fi
-    if ifconfig ${IFACE} | head -2 | tail -1 | grep "BROADCAST" >/dev/null 2>&1; then
+    if ! ip addr show ${IFACE} | grep "inet " >/dev/null 2>&1; then
 	$color_Red
 	echo "Error fetching IP address for device: ${IFACE}"
 	$color_Off
 	IFACE=""
     fi
 done
+
+# Stop service for installation and configuration
+systemctl stop pptpd >/dev/null 2>&1
 
 # Check, if /etc/ppp/options.pptp file already exists, then backup it
 if [ -f /etc/ppp/options.pptp ]; then
@@ -138,11 +131,31 @@ novjccomp
 nologfd
 EOF
 
-# Enable daemons
-chkconfig pptpd on
+# Check filewall ports
+if ! firewall-cmd --permanent --query-port=1723/tcp; then
+    $color_Red
+    echo "The PPTP service port (1723/tcp) is closed in your firewall!"
+    $color_Cyan
+    echo -n "Do you want to open it now? (Y/n)?"; read USERINPUT
+    $color_Off
+    if [ "${USERINPUT}" = "" -o "${USERINPUT}" = "y" -o "${USERINPUT}" = "Y" ]; then
+	firewall-cmd --permanent --add-port=1723/tcp
+	firewall-cmd --reload
+	$color_BGreen
+	echo "The PPTP service port (1723/tcp) was opened in your firewall!!!"
+	$color_Off
+    else
+	$color_BRed
+	echo "The PPTP service port (1723/tcp) was not been opened in your firewall!!!"
+	$color_Off
+    fi
+fi
 
-# Start daemons
-service pptpd start
+# Enable daemon
+systemctl enable pptpd >/dev/null 2>&1
+
+# Start daemon
+systemctl start pptpd >/dev/null 2>&1
 
 # Create installation signature
 if ! [ -d /var/lib/system-setup-tools ]; then
@@ -152,7 +165,7 @@ echo "Install date: `date`" > /var/lib/system-setup-tools/pptpd
 
 # Print info
 $color_Purple
-echo "Do not forget to open port 1723-tcp and 47-ip in your firewall!"
+echo "Do not forget to open protocol 47/ip in your firewall!"
 echo
 echo "You have to add your remote users to /etc/ppp/chap-secrets:"
 echo

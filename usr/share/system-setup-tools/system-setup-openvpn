@@ -15,27 +15,24 @@
 
 [ -f /etc/denix-colors ] && . /etc/denix-colors
 
+# Check system version
+[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
+if ! [ $system_ver = "17" -o $system_ver = "18" -o $system_ver = "19" ]; then
+    $color_Red
+    echo "Not supported platform!"
+    echo "Exiting..."
+    $color_Off
+    exit 1
+fi
+
 # Check if script runs under root
 if ! [ "$(whoami)" = "root" ]; then
     echo "You have to run me with root user priveleges!"
     exit 1
 fi
 
-# Check the system version
-[ -f /etc/fedora-release ] && system_version=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
-case ${system_version} in
-    14|15|16|17)
-    echo "Fedora version detected: ${system_version} - supported!"
-    ;;
-
-    *)
-    echo "Unsupported system. Exiting."
-    exit 1
-    ;;
-esac
-
 # Install required packages
-pk="openvpn"
+pk="openvpn firewalld"
 for i in $pk; do
 	if ! rpm -q $i >/dev/null 2>&1; then
 		required_packages="$required_packages $i"
@@ -54,14 +51,7 @@ fi
 
 # Ask for network device
 while [ "${IFACE}" = "" ]; do
-    case ${system_version} in
-	17)
-	    FOUND_IFACE=`ifconfig -a | sed 's/[: ].*//;/^\(lo\|\)$/d' | head -1`
-	    ;;
-	*)
-	    FOUND_IFACE=`ifconfig -a | sed 's/[ \t].*//;/^\(lo\|\)$/d' | head -1`
-	    ;;
-    esac
+    FOUND_IFACE=`ifconfig -a | sed 's/[: \t].*//;/^\(lo\|\)$/d' | head -1`
     $color_Cyan
     echo -n "What is your primary network interface [${FOUND_IFACE}]?"; read IFACE
     $color_Off
@@ -74,13 +64,16 @@ while [ "${IFACE}" = "" ]; do
 	$color_Off
 	IFACE=""
     fi
-    if ifconfig ${IFACE} | head -2 | tail -1 | grep "BROADCAST" >/dev/null 2>&1; then
+    if ! ip addr show ${IFACE} | grep "inet " >/dev/null 2>&1; then
 	$color_Red
 	echo "Error fetching IP address for device: ${IFACE}"
 	$color_Off
 	IFACE=""
     fi
 done
+
+# Stop daemon for installation and configuration
+systemctl stop openvpn >/dev/null 2>&1
 
 # Check, if /etc/openvpn/multi-user.conf file already exists, then backup it
 if [ -f /etc/openvpn/multi-user.conf ]; then
@@ -117,11 +110,31 @@ EOF
 # Generate static key
 openvpn --genkey --secret /etc/openvpn/static.key
 
+# Check filewall ports
+if ! firewall-cmd --permanent --query-service=openvpn; then
+    $color_Red
+    echo "The OPENVPN service port (1194/tcp) is closed in your firewall!"
+    $color_Cyan
+    echo -n "Do you want to open it now? (Y/n)?"; read USERINPUT
+    $color_Off
+    if [ "${USERINPUT}" = "" -o "${USERINPUT}" = "y" -o "${USERINPUT}" = "Y" ]; then
+	firewall-cmd --permanent --add-service=openvpn
+	firewall-cmd --reload
+	$color_BGreen
+	echo "The OPENVPN service port (1194/tcp) was opened in your firewall!!!"
+	$color_Off
+    else
+	$color_BRed
+	echo "The OPENVPN service port (1194/tcp) was not been opened in your firewall!!!"
+	$color_Off
+    fi
+fi
+
 # Enable daemon
-systemctl enable openvpn@.service
+systemctl enable openvpn >/dev/null 2>&1
 
 # Start daemons
-systemctl start openvpn@multi-user.service
+systemctl start openvpn >/dev/null 2>&1
 
 # Create installation signature
 if ! [ -d /var/lib/system-setup-tools ]; then
@@ -131,7 +144,6 @@ echo "Install date: `date`" > /var/lib/system-setup-tools/openvpn
 
 # Print info
 $color_Purple
-echo "Do not forget to open port 1194-udp in your firewall!"
 echo
 echo "Copy the secret key to your client computer: scp /etc/openvpn/static.key root@XXX.XXX.XXX.XXX:/etc/openvpn"
 echo "Copy client configuration to your client computer: scp /etc/openvpn/client.conf root@XXX.XXX.XXX.XXX:/etc/openvpn"

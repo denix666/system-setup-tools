@@ -15,6 +15,16 @@
 
 [ -f /etc/denix-colors ] && . /etc/denix-colors
 
+# Check system version
+[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
+if ! [ $system_ver = "18" -o $system_ver = "19" ]; then
+    $color_Red
+    echo "Not supported platform!"
+    echo "Exiting..."
+    $color_Off
+    exit 1
+fi
+
 # Check if script runs under root
 if ! [ "$(whoami)" = "root" ]; then
     echo "You have to run me with root user priveleges!"
@@ -22,7 +32,7 @@ if ! [ "$(whoami)" = "root" ]; then
 fi
 
 # Install required packages
-pk="httpd php php-pear php-mysql php-mbstring"
+pk="httpd php php-pear php-mysql php-mbstring firewalld"
 for i in $pk; do
 	if ! rpm -q $i >/dev/null 2>&1; then
 		required_packages="$required_packages $i"
@@ -45,7 +55,7 @@ if ! [ "$required_packages" = "" ]; then
 fi
 
 # Stop the services for installation
-service httpd stop >/dev/null 2>&1
+systemctl stop httpd >/dev/null 2>&1
 
 # Create skeleton pub directory
 if ! [ -f /etc/skel/.public_html ]; then
@@ -101,7 +111,7 @@ cat > /etc/httpd/conf.d/userdir.conf << EOF
 EOF
 
 # Create noindex content
-cat > /var/www/error/noindex.html << EOF
+cat > /usr/share/httpd/noindex/index.html << EOF
 <br>
 <br>
 <p align=center>Welcome to Linux server !!!</text>
@@ -123,20 +133,39 @@ NameVirtualHost *:80
 </VirtualHost>
 EOF
 
+# Check filewall ports
+if ! firewall-cmd --permanent --query-service=http; then
+    $color_Red
+    echo "The HTTP service port (80/tcp) is closed in your firewall!"
+    $color_Cyan
+    echo -n "Do you want to open it now? (Y/n)?"; read USERINPUT
+    $color_Off
+    if [ "${USERINPUT}" = "" -o "${USERINPUT}" = "y" -o "${USERINPUT}" = "Y" ]; then
+	firewall-cmd --permanent --add-service=http
+	firewall-cmd --reload
+	$color_BGreen
+	echo "The HTTP service port (80/tcp) was opened in your firewall!!!"
+	$color_Off
+    else
+	$color_BRed
+	echo "The HTTP service port (80/tcp) was not been opened in your firewall!!!"
+	$color_Off
+    fi
+fi
+
 # Enable daemons
-chkconfig httpd on
+systemctl enable httpd >/dev/null 2>&1
 
 # Start daemons
-service httpd start
+systemctl start httpd >/dev/null 2>&1
 
 # Create installation signature
 if ! [ -d /var/lib/system-setup-tools ]; then
-	install -d /var/lib/system-setup-tools
+    install -d /var/lib/system-setup-tools
 fi
 echo "Install date: `date`" > /var/lib/system-setup-tools/httpd
 
 $color_Purple
-echo "Do not forget to open port 80 tcp in your firewall!"
 echo "Now you can setup the virtualhost with <system-setup-virtualhost> command!"
 $color_BGreen
 echo "Setup completed!"

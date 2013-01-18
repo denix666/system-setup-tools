@@ -1,6 +1,6 @@
 Name:		system-setup-tools
-Version:	18.6
-Release:	5%{?dist}
+Version:	18.7
+Release:	0%{?dist}
 Summary:	Setup scripts by -=DeN=-
 Group:		Scripts
 License:	GPL
@@ -49,7 +49,6 @@ rm -rf %{_builddir}/%{name}
 %attr(0644,root,root) /etc/pam.d/system-setup-dovecot
 %attr(0644,root,root) /etc/security/console.apps/system-setup-dovecot
 
-
 %attr(0755,root,root) /usr/share/system-setup-tools/system-setup-httpd
 %attr(0755,root,root) /usr/bin/system-setup-httpd
 %attr(0644,root,root) /etc/pam.d/system-setup-httpd
@@ -59,11 +58,6 @@ rm -rf %{_builddir}/%{name}
 %attr(0755,root,root) /usr/bin/system-setup-java
 %attr(0644,root,root) /etc/pam.d/system-setup-java
 %attr(0644,root,root) /etc/security/console.apps/system-setup-java
-
-%attr(0755,root,root) /usr/share/system-setup-tools/system-setup-kvm
-%attr(0755,root,root) /usr/bin/system-setup-kvm
-%attr(0644,root,root) /etc/pam.d/system-setup-kvm
-%attr(0644,root,root) /etc/security/console.apps/system-setup-kvm
 
 %attr(0755,root,root) /usr/share/system-setup-tools/system-setup-mysql
 %attr(0755,root,root) /usr/bin/system-setup-mysql
@@ -114,8 +108,3 @@ rm -rf %{_builddir}/%{name}
 %attr(0755,root,root) /usr/bin/system-setup-virtualhost
 %attr(0644,root,root) /etc/pam.d/system-setup-virtualhost
 %attr(0644,root,root) /etc/security/console.apps/system-setup-virtualhost
-
-%attr(0755,root,root) /usr/share/system-setup-tools/system-setup-vpnpeer
-%attr(0755,root,root) /usr/bin/system-setup-vpnpeer
-%attr(0644,root,root) /etc/pam.d/system-setup-vpnpeer
-%attr(0644,root,root) /etc/security/console.apps/system-setup-vpnpeer

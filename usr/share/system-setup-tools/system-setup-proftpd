@@ -15,6 +15,16 @@
 
 [ -f /etc/denix-colors ] && . /etc/denix-colors
 
+# Check system version
+[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
+if ! [ $system_ver = "17" -o $system_ver = "18" -o $system_ver = "19" ]; then
+    $color_Red
+    echo "Not supported platform!"
+    echo "Exiting..."
+    $color_Off
+    exit 1
+fi
+
 # Check if script runs under root
 if ! [ "$(whoami)" = "root" ]; then
     echo "You have to run me with root user priveleges!"
@@ -22,7 +32,7 @@ if ! [ "$(whoami)" = "root" ]; then
 fi
 
 # Install proftpd packages
-pk="proftpd"
+pk="proftpd firewalld"
 for i in $pk; do
     if ! rpm -q $i >/dev/null 2>&1; then
 	required_packages="$required_packages $i"
@@ -71,7 +81,7 @@ done
 $color_Off
 
 # Stop the services for installation
-service proftpd stop >/dev/null 2>&1
+systemctl stop proftpd >/dev/null 2>&1
 
 cat > /etc/proftpd.conf << EOF
 ServerName			"ProFTPD server"
@@ -113,11 +123,31 @@ LogFormat			default	"%h %l %u %t \"%r\" %s %b"
 LogFormat			auth	"%v [%P] %h %t \"%r\" %s"
 EOF
 
+# Check filewall ports
+if ! firewall-cmd --permanent --query-service=ftp; then
+    $color_Red
+    echo "The FTP service port (21/tcp) is closed in your firewall!"
+    $color_Cyan
+    echo -n "Do you want to open it now? (Y/n)?"; read USERINPUT
+    $color_Off
+    if [ "${USERINPUT}" = "" -o "${USERINPUT}" = "y" -o "${USERINPUT}" = "Y" ]; then
+	firewall-cmd --permanent --add-service=ftp
+	firewall-cmd --reload
+	$color_BGreen
+	echo "The FTP service port (21/tcp) was opened in your firewall!!!"
+	$color_Off
+    else
+	$color_BRed
+	echo "The FTP service port (21/tcp) was not been opened in your firewall!!!"
+	$color_Off
+    fi
+fi
+
 # Enable proftpd daemon
-chkconfig proftpd on
+systemctl enable proftpd >/dev/null 2>&1
 
 # Start proftpd server
-service proftpd start
+systemctl start proftpd >/dev/null 2>&1
 
 # Create installation signature
 if ! [ -d /var/lib/system-setup-tools ]; then

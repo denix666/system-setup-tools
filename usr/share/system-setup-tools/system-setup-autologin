@@ -15,6 +15,16 @@
 
 [ -f /etc/denix-colors ] && . /etc/denix-colors
 
+# Check system version
+[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
+if ! [ $system_ver = "17" -o $system_ver = "18" -o $system_ver = "19" ]; then
+    $color_Red
+    echo "Not supported platform!"
+    echo "Exiting..."
+    $color_Off
+    exit 1
+fi
+
 # Check if script runs under root
 if ! [ "$(whoami)" = "root" ]; then
     echo "You have to run me with root user priveleges!"
@@ -105,7 +115,7 @@ $color_Off
 
 # Create installation signature
 if ! [ -d /var/lib/system-setup-tools ]; then
-	install -d /var/lib/system-setup-tools
+    install -d /var/lib/system-setup-tools
 fi
 echo "Install date: `date`" > /var/lib/system-setup-tools/autologin
 

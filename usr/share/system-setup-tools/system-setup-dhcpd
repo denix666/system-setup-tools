@@ -15,6 +15,16 @@
 
 [ -f /etc/denix-colors ] && . /etc/denix-colors
 
+# Check system version
+[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
+if ! [ $system_ver = "17" -o $system_ver = "18" -o $system_ver = "19" ]; then
+    $color_Red
+    echo "Not supported platform!"
+    echo "Exiting..."
+    $color_Off
+    exit 1
+fi
+
 # Check if script runs under root
 if ! [ "$(whoami)" = "root" ]; then
     echo "You have to run me with root user priveleges!"
@@ -34,7 +44,7 @@ if ! [ -f /var/lib/system-setup-tools/named ]; then
 fi
 
 # Install required packages
-pk="dhcp bind"
+pk="dhcp bind firewalld"
 for i in $pk; do
 	if ! rpm -q $i >/dev/null 2>&1; then
 		required_packages="$required_packages $i"
@@ -56,38 +66,26 @@ if ! [ "$required_packages" = "" ]; then
 	fi
 fi
 
-# Check system version
-[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
-
 # Ask for network device
 while [ "${IFACE}" = "" ]; do
-    case ${system_ver} in
-	17|18)
-	    FOUND_IFACE=`ifconfig -a | sed 's/[: ].*//;/^\(lo\|\)$/d' | head -1`
-	    ;;
-	*)
-	    FOUND_IFACE=`ifconfig -a | sed 's/[ \t].*//;/^\(lo\|\)$/d' | head -1`
-	    ;;
-    esac
+    FOUND_IFACE=`ifconfig -a | sed 's/[: \t].*//;/^\(lo\|\)$/d' | head -1`
     $color_Cyan
     echo -n "What is your primary network interface [${FOUND_IFACE}]?"; read IFACE
     $color_Off
     if [ "${IFACE}" = "" ]; then
 	IFACE="${FOUND_IFACE}"
     fi
-    if ! ip addr show ${IFACE} >/dev/null 2>&1; then
+    if ! ifconfig ${IFACE} >/dev/null 2>&1; then
 	$color_Red
 	echo "Error fetching network device: ${IFACE}"
 	$color_Off
 	IFACE=""
     fi
-    if ! [ -z ${IFACE} ]; then
-	if ! ip addr show ${IFACE} | grep "inet " >/dev/null 2>&1; then
-	    $color_Red
-	    echo "Error fetching IP address for device: ${IFACE}"
-	    $color_Off
-	    IFACE=""
-	fi
+    if ! ip addr show ${IFACE} | grep "inet " >/dev/null 2>&1; then
+	$color_Red
+	echo "Error fetching IP address for device: ${IFACE}"
+	$color_Off
+	IFACE=""
     fi
 done
 
@@ -110,7 +108,7 @@ if [ "${GATEWAY}" = "" ]; then
 fi
 
 # Stop the services for installation
-service dhcpd stop >/dev/null 2>&1
+systemctl stop dhcpd >/dev/null 2>&1
 
 # Check, if configuration file already exists, then backup it
 if [ -f ${DHCPD_CONFIG} ]; then
@@ -160,16 +158,16 @@ EOF
 
 # Generate new rndc key if not found
 if ! [ -f /etc/rndc.key ]; then
-    echo "Generating /etc/rndc.key"
+    echo "Generating rndc key..."
     rndc-confgen -ac /etc/rndc.key
     chown named:named /etc/rndc.key
 fi
 
 # Enable dhcp daemon
-chkconfig dhcpd on
+systemctl enable dhcpd >/dev/null 2>&1
 
 # Start dhcp server
-service dhcpd start
+systemctl start dhcpd >/dev/null 2>&1
 
 # Create installation signature
 if ! [ -d /var/lib/system-setup-tools ]; then

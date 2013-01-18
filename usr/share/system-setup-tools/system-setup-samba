@@ -15,6 +15,16 @@
 
 [ -f /etc/denix-colors ] && . /etc/denix-colors
 
+# Check system version
+[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
+if ! [ $system_ver = "17" -o $system_ver = "18" -o $system_ver = "19" ]; then
+    $color_Red
+    echo "Not supported platform!"
+    echo "Exiting..."
+    $color_Off
+    exit 1
+fi
+
 # Check if script runs under root
 if ! [ "$(whoami)" = "root" ]; then
     echo "You have to run me with root user priveleges!"
@@ -60,7 +70,7 @@ while [ "${NBTNAME}" = "" ]; do
 done
 
 # Install samba packages
-pk="samba"
+pk="samba firewalld"
 for i in $pk; do
     if ! rpm -q $i >/dev/null 2>&1; then
 	required_packages="$required_packages $i"
@@ -159,6 +169,26 @@ cat > /etc/samba/smb.conf << EOF
 EOF
 
 
+# Check filewall ports
+if ! firewall-cmd --permanent --query-service=samba; then
+    $color_Red
+    echo "The SAMBA service ports is closed in your firewall!"
+    $color_Cyan
+    echo -n "Do you want to open them now? (Y/n)?"; read USERINPUT
+    $color_Off
+    if [ "${USERINPUT}" = "" -o "${USERINPUT}" = "y" -o "${USERINPUT}" = "Y" ]; then
+	firewall-cmd --permanent --add-service=samba
+	firewall-cmd --reload
+	$color_BGreen
+	echo "The SAMBA service ports where opened in your firewall!!!"
+	$color_Off
+    else
+	$color_BRed
+	echo "The SAMBA service ports where not been opened in your firewall!!!"
+	$color_Off
+    fi
+fi
+
 # Enable samba daemons
 chkconfig smb on
 chkconfig nmb on
@@ -173,8 +203,6 @@ if ! [ -d /var/lib/system-setup-tools ]; then
 fi
 echo "Install date: `date`" > /var/lib/system-setup-tools/samba
 
-$color_Purple
-echo "Do not forget to open samba ports in your firewall!"
 $color_BGreen
 echo "Setup completed!"
 $color_Off
