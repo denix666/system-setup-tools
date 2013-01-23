@@ -47,7 +47,7 @@ for i in $*; do
     case $i in
 	--remove)
 	    # Remove autologin configuration and exit
-	    sed -i '/^AutomaticLogin.*$/d' ${mdm_custom}
+	    sed -i 's/^.*AutoLoginEnable=.*$/AutoLoginEnable=false/g' ${kdmrc_file}
 	    exit 0
 	    ;;
     esac
@@ -87,19 +87,8 @@ $color_BYellow
 echo
 echo -n "Installing autologin for user ${auto_login}..."
 
-result=`cat ${mdm_custom} | grep ^'AutomaticLogin=' | cut -d'=' -f1`
-if [ "$result" = "AutomaticLogin" ]; then
-    sed -i 's/^AutomaticLogin=.*$/AutomaticLogin='$auto_login'/g' ${mdm_custom}
-else
-    sed -i '/^\[daemon\]/a AutomaticLogin='$auto_login ${mdm_custom}
-fi
-
-result=`cat ${mdm_custom} | grep ^'AutomaticLoginEnable=' | cut -d'=' -f1`
-if [ "$result" = "AutomaticLoginEnable" ]; then
-    sed -i 's/^AutomaticLoginEnable=.*$/AutomaticLoginEnable=true/g' ${mdm_custom}
-else
-    sed -i '/^\[daemon\]/a AutomaticLoginEnable=true' ${mdm_custom}
-fi
+sed -i 's/^.*AutoLoginEnable=.*$/AutoLoginEnable=true/g' ${kdmrc_file}
+sed -i 's/^.*AutoLoginUser=.*$/AutoLoginUser='$auto_login'/g' ${kdmrc_file}
 
 $color_BGreen
 echo " done"
