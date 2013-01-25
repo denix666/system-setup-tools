@@ -101,9 +101,9 @@ if [ -f /etc/samba/smb.conf ]; then
 fi
 
 # Create directoriess of netlogon and public access
-install -m 700 -d /home/samba_shares/public
+install -m 770 -d /home/samba_shares/public
 chown -R root:users /home/samba_shares
-chmod -R ug+rwx,o+rx-w /home/samba_shares
+chmod -R 770 /home/samba_shares
 
 # Create new samba configuration file
 cat > /etc/samba/smb.conf << EOF
@@ -111,47 +111,33 @@ cat > /etc/samba/smb.conf << EOF
     netbios name                = ${NBTNAME}
     workgroup                   = workgroup
     server string               = %h
-    security                    = user
-    wins support                = yes
-    domain master               = yes
-    domain logons               = yes
-    local master                = yes
-    preferred master            = yes
-    os level                    = 255
-    name resolve order          = dns wins
-    passdb backend              = tdbsam
     logon home                  = \\\\%L\\%U
-    printing			= cups
-    client lanman auth		= yes
-    client plaintext auth	= yes
-    lanman auth			= yes
-
-[printers]
-    comment			= All printers
-    path			= /var/spool/samba
-    browseable			= yes
-    public			= yes
-    guest ok			= yes
-    printable			= yes
-    use client driver		= yes
+    security                    = user
+    passdb backend              = tdbsam
+    vfs objects	                = full_audit
+    full_audit:prefix           = %u|%I
+    full_audit:failure          = connect opendir
+    full_audit:success          = connect opendir mkdir rmdir read pread write pwrite sendfile rename unlink
+    full_audit:facility         = local5
+    full_audit:priority         = notice
 
 [homes]
     comment                     = Home Directories
     valid users                 = %S
     browseable                  = no
     writable                    = yes
-    hide dot files              = yes
-    create mask                 = 0700
+    create mask                 = 0600
     directory mask              = 0700
 
 [public]
-    comment			= Public Directory
-    path			= /home/samba_shares/public
-    valid users			= @users
-    force group			= users
-    create mask			= 0660
-    directory mask		= 0771
-    writable			= yes
+    comment                     = Public Directory
+    path                        = /home/samba_shares/public
+    valid users                 = @users
+    force group                 = users
+    create mask                 = 0660
+    directory mask              = 0770
+    read only                   = no
+    browseable                  = yes
 EOF
 
 
@@ -187,6 +173,14 @@ if ! [ -d /var/lib/system-setup-tools ]; then
 fi
 echo "Install date: `date`" > /var/lib/system-setup-tools/samba
 
+$color_BWhite
+echo
+echo "To add new users:"
+echo
+echo "useradd den -m -G users"
+echo "smbpasswd -a den"
+echo
 $color_BGreen
+echo
 echo "Setup completed!"
 $color_Off
