@@ -1,0 +1,97 @@
+#! /bin/bash
+#
+# Copyright © 2001 - 2012 Denis Salmanovich denis.salmanovich@gmail.com
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+
+[ -f /etc/denix-colors ] && . /etc/denix-colors
+
+# Check system version
+[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
+if ! [ $system_ver = "18" -o $system_ver = "19" ]; then
+    $color_Red
+    echo "Not supported platform!"
+    echo "Exiting..."
+    $color_Off
+    exit 1
+fi
+
+# Check if script runs under root
+if ! [ "$(whoami)" = "root" ]; then
+    echo "You have to run me with root user priveleges!"
+    exit 1
+fi
+
+# Install required packages
+pk="trac mod_wsgi trac-git-plugin firewalld"
+for i in $pk; do
+	if ! rpm -q $i >/dev/null 2>&1; then
+		required_packages="$required_packages $i"
+	fi
+done
+
+if ! [ "$required_packages" = "" ]; then
+	$color_Purple
+	echo "Some packages not found on your system. Trying to download and install..."
+	if ! yum -y install $required_packages; then
+	    $color_BRed
+	    echo "Download failed! Check internet connection and try again!"
+	    $color_Off
+	    exit 1
+	else
+	    $color_Green
+	    echo "Installation success!"
+	    $color_Off
+	fi
+fi
+
+# Create directories for projects and repositories
+install -d /srv/trac
+
+# Create wsgi script
+cat > /srv/trac/trac.wsgi << EOF
+#!/usr/bin/env python
+import os
+def application(environ, start_request):
+    os.environ['TRAC_ENV_PARENT_DIR'] = '/srv/trac'
+    os.environ['PYTHON_EGG_CACHE'] = '/tmp/egg-cache'
+    from trac.web.main import dispatch_request
+    return dispatch_request(environ, start_request)
+EOF
+
+# Create httpd trac configuration
+cat > /etc/httpd/conf.d/trac.conf << EOF
+WSGIScriptAlias /trac /srv/trac/trac.wsgi
+<Directory /srv/trac>
+    WSGIApplicationGroup %{GLOBAL}
+    Order deny,allow
+    Allow from all
+</Directory>
+<LocationMatch "/trac/[^/]+/login">
+    AuthType Digest
+    AuthName "Project Repository"
+    AuthUserFile /srv/trac/.htpasswd
+    Require valid-user
+</LocationMatch>
+EOF
+
+# Create installation signature
+if ! [ -d /var/lib/system-setup-tools ]; then
+    install -d /var/lib/system-setup-tools
+fi
+echo "Install date: `date`" > /var/lib/system-setup-tools/trac
+
+$color_Purple
+echo "Now you can add the project."
+$color_BGreen
+echo "Setup completed!"
+$color_Off
