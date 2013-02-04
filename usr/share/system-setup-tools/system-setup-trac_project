@@ -1,0 +1,105 @@
+#! /bin/bash
+#
+# Copyright © 2001 - 2012 Denis Salmanovich denis.salmanovich@gmail.com
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+
+[ -f /etc/denix-colors ] && . /etc/denix-colors
+
+# Check system version
+[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
+if ! [ $system_ver = "18" -o $system_ver = "19" ]; then
+    $color_Red
+    echo "Not supported platform!"
+    echo "Exiting..."
+    $color_Off
+    exit 1
+fi
+
+# Check if script runs under root
+if ! [ "$(whoami)" = "root" ]; then
+    echo "You have to run me with root user priveleges!"
+    exit 1
+fi
+
+# Check if trac is installed
+if ! [ -f /var/lib/system-setup-tools/trac ]; then
+    $color_Red
+    echo "The trac server is not installed on your system!"
+    $color_Cyan
+    echo -n "Do you want to install it now? (Y/n)?"; read USERINPUT
+    $color_Off
+    if [ "${USERINPUT}" = "" -o "${USERINPUT}" = "y" -o "${USERINPUT}" = "Y" ]; then
+	/usr/bin/system-setup-trac
+    else
+	echo "You have to install trac server first!"
+	echo "Exiting..."
+	exit 1
+    fi
+fi
+
+
+# Make sure that directories for projects and repositories exists
+install -d /srv/{trac,git}
+
+# Create new project
+while [ "${PROJECT_NAME}" = "" ]; do
+    echo -n "Enter project name [new_project]: "; read PROJECT_NAME
+    if [ "${PROJECT_NAME}" = "" ]; then
+	PROJECT_NAME="new_project"
+    fi
+    if [ -e /srv/trac/${PROJECT_NAME} ]; then
+	$color_Red
+	echo "WARNING! The project ${PROJECT_NAME} already exists!"
+	echo "This will be overwrite the contents of it!"
+	echo -n "Are you sure want to use it anyway [y/N]?"; read USERINPUT
+	if [ "${USERINPUT}" = "" ]; then
+	    PROJECT_NAME=""
+	else
+	    install -d /srv/{trac-trash,git-trash}
+	    mv /srv/trac/${PROJECT_NAME} /srv/trac-trash/${PROJECT_NAME}.back.`date +%Y%m%d%H%M`
+	    mv /srv/git/${PROJECT_NAME} /srv/git-trash/${PROJECT_NAME}.back.`date +%Y%m%d%H%M`
+	fi
+    fi
+done
+
+# Add new project repositories
+$color_Green
+trac-admin /srv/trac/${PROJECT_NAME} initenv
+install -d /srv/git/${PROJECT_NAME}/.git
+git --bare init /srv/git/${PROJECT_NAME}/.git
+$color_Off
+
+# Enabling GIT support by default
+cat >> /srv/trac/${PROJECT_NAME}/conf/trac.ini << EOF
+[components]
+tracext.git.* = enabled
+EOF
+sed -i 's/^repository_type =.*$/repository_type = git/g' /srv/trac/${PROJECT_NAME}/conf/trac.ini
+sed -i 's/^repository_dir =.*$/repository_dir = \/srv\/git\/'${PROJECT_NAME}'\/.git/g' /srv/trac/${PROJECT_NAME}/conf/trac.ini
+
+# Enabling system logo for project
+cp /usr/share/pixmaps/fedora-logo-small.png /srv/trac/${PROJECT_NAME}/htdocs/your_project_logo.png
+
+# Adding admin permissions to pproject
+trac-admin /srv/trac/${PROJECT_NAME} permission add admin TRAC_ADMIN
+
+# Fix permissions
+chown -R apache:apache /srv/trac
+
+$color_Purple
+echo "New projects was successfulli created."
+echo "You can navigate to http://$(hostname)/trac"
+echo
+$color_BGreen
+echo "Setup completed!"
+$color_Off

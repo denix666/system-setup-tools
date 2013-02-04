@@ -70,6 +70,17 @@ if [ -f /etc/httpd/conf.d/vhosts.conf ]; then
     cp /etc/httpd/conf.d/vhosts.conf /etc/httpd/conf.d/vhosts.conf.back.`date +%Y%m%d%H%M`
 fi
 
+# Check, if /etc/hosts file already exists, then backup it
+if [ -f /etc/hosts ]; then
+    cp /etc/hosts /etc/hosts.back.`date +%Y%m%d%H%M`
+fi
+
+# Create new hosts file
+cat > /etc/hosts << EOF
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4 ${DOMAINNAME}
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+EOF
+
 # Make public_html directories for existing users
 for i in `ls -d /home/*`; do
     if [ -f $i/.bashrc ]; then
