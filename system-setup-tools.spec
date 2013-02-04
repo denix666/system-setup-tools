@@ -1,6 +1,6 @@
 Name:		system-setup-tools
 Version:	18.7
-Release:	5%{?dist}
+Release:	6%{?dist}
 Summary:	Setup scripts by -=DeN=-
 Group:		Scripts
 License:	GPL
@@ -103,6 +103,16 @@ rm -rf %{_builddir}/%{name}
 %attr(0755,root,root) /usr/bin/system-setup-tftpd
 %attr(0644,root,root) /etc/pam.d/system-setup-tftpd
 %attr(0644,root,root) /etc/security/console.apps/system-setup-tftpd
+
+%attr(0755,root,root) /usr/share/system-setup-tools/system-setup-trac
+%attr(0755,root,root) /usr/bin/system-setup-trac
+%attr(0644,root,root) /etc/pam.d/system-setup-trac
+%attr(0644,root,root) /etc/security/console.apps/system-setup-trac
+
+%attr(0755,root,root) /usr/share/system-setup-tools/system-setup-trac_project
+%attr(0755,root,root) /usr/bin/system-setup-trac_project
+%attr(0644,root,root) /etc/pam.d/system-setup-trac_project
+%attr(0644,root,root) /etc/security/console.apps/system-setup-trac_project
 
 %attr(0755,root,root) /usr/share/system-setup-tools/system-setup-virtualhost
 %attr(0755,root,root) /usr/bin/system-setup-virtualhost
