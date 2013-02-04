@@ -94,7 +94,7 @@ cp /usr/share/pixmaps/fedora-logo-small.png /srv/trac/${PROJECT_NAME}/htdocs/you
 trac-admin /srv/trac/${PROJECT_NAME} permission add admin TRAC_ADMIN
 
 # Fix permissions
-chown -R apache:apache /srv/trac
+chown -R apache:apache /srv/{trac,git}
 
 $color_Purple
 echo "New projects was successfulli created."

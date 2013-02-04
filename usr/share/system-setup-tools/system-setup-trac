@@ -84,15 +84,50 @@ WSGIScriptAlias /trac /srv/trac/trac.wsgi
 </LocationMatch>
 EOF
 
+cat > /etc/httpd/conf.d/git.conf << EOF
+SetEnv GIT_PROJECT_ROOT /srv/git
+SetEnv GIT_HTTP_EXPORT_ALL
+
+AliasMatch ^/git/(.*/objects/[0-9a-f]{2}/[0-9a-f]{38})\$          /srv/git/\$1
+AliasMatch ^/git/(.*/objects/pack/pack-[0-9a-f]{40}.(pack|idx))\$ /srv/git/\$1
+ScriptAlias /git/ /usr/libexec/git-core/git-http-backend/
+
+Alias /git /srv/git
+<Directory /srv/git>
+    Options Indexes FollowSymLinks Multiviews
+    AllowOverride All
+    Require all granted
+</Directory>
+<LocationMatch "^/git">
+    DAV on
+    AuthType Digest
+    AuthName "Git"
+    AuthUserFile /srv/git/.htpasswd
+    Require valid-user
+</LocationMatch>
+
+EOF
+
 # Check, if .htpasswd file already exists, then backup it
 if [ -f /srv/trac/.htpasswd ]; then
     cp /srv/trac/.htpasswd /srv/trac/.htpasswd.back.`date +%Y%m%d%H%M`
 fi
+if [ -f /srv/git/.htpasswd ]; then
+    cp /srv/git/.htpasswd /srv/git/.htpasswd.back.`date +%Y%m%d%H%M`
+fi
+
 
 # Create new auth file
 $color_Purple
 echo "Creating trac admin user:"
 htdigest -c /srv/trac/.htpasswd 'Trac' admin
+echo
+$color_Off
+
+# Create new auth file
+$color_Purple
+echo "Creating git admin user:"
+htdigest -c /srv/git/.htpasswd 'Git' admin
 echo
 $color_Off
 
@@ -106,7 +141,11 @@ fi
 echo "Install date: `date`" > /var/lib/system-setup-tools/trac
 
 $color_Purple
-echo "Now you can add the project."
+echo "Now you can add the project by <system-setup_trac_project> command."
+echo
+echo "To add new user to trac: <htdigest /srv/trac/.htpasswd Trac USERNAME>"
+echo "To add new user to git: <htdigest /srv/git/.htpasswd Git USERNAME>"
+echo
 $color_BGreen
 echo "Setup completed!"
 $color_Off
