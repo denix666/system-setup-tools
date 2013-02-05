@@ -87,6 +87,12 @@ EOF
 sed -i 's/^repository_type =.*$/repository_type = git/g' /srv/trac/${PROJECT_NAME}/conf/trac.ini
 sed -i 's/^repository_dir =.*$/repository_dir = \/srv\/git\/'${PROJECT_NAME}'\/.git/g' /srv/trac/${PROJECT_NAME}/conf/trac.ini
 
+# Change max attachment size to 10 Mb
+sed -i 's/^max_size =.*$/max_size = 10000000/g' /srv/trac/${PROJECT_NAME}/conf/trac.ini
+
+# Change default charset to UTF-8
+sed -i 's/^default_charset =.*$/default_charset = utf-8/g' /srv/trac/${PROJECT_NAME}/conf/trac.ini
+
 # Enabling system logo for project
 cp /usr/share/pixmaps/fedora-logo-small.png /srv/trac/${PROJECT_NAME}/htdocs/your_project_logo.png
 
