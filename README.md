@@ -9,6 +9,7 @@ system-setup-tools - is a set of the scripts to easy setup, installation and con
 - `system-setup-dovecot` (Setup IMAP server)
 - `system-setup-http` (Setup apachee server)
 - `system-setup-java` (Install Oracle JRE)
+- `system-setup-ltsp` (Install linux terminal server)
 - `system-setup-mysql` (Setup MYSQL server)
 - `system-setup-named` (Setup DNS server)
 - `system-setup-openvpn` (Setup OpenVPN server)

@@ -116,7 +116,6 @@ if [ -f /srv/git/.htpasswd ]; then
     cp /srv/git/.htpasswd /srv/git/.htpasswd.back.`date +%Y%m%d%H%M`
 fi
 
-
 # Create new auth file
 $color_Purple
 echo "Creating trac admin user:"
@@ -133,6 +132,9 @@ $color_Off
 
 # Fix permissions
 chown -R apache:apache /srv/trac
+
+# Restart apache service
+systemctl restart httpd >/dev/null 2>&1
 
 # Create installation signature
 if ! [ -d /var/lib/system-setup-tools ]; then

@@ -63,7 +63,7 @@ service xinetd stop >/dev/null 2>&1
 [ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
 
 case ${system_ver} in
-    14|15|16|17)
+    18|19)
 	tftpboot_path="/var/lib/tftpboot"
 	syslinux_path="/usr/share/syslinux"
 	;;
@@ -118,6 +118,27 @@ label local-boot
 
 EOF
 
+# Check filewall ports
+if ! firewall-cmd --permanent --query-service=tftp; then
+    $color_Red
+    echo "The TFTP service port is closed in your firewall!"
+    $color_Cyan
+    echo -n "Do you want to open it now? (Y/n)?"; read USERINPUT
+    $color_Off
+    if [ "${USERINPUT}" = "" -o "${USERINPUT}" = "y" -o "${USERINPUT}" = "Y" ]; then
+	firewall-cmd --permanent --add-service=tftp
+	firewall-cmd --reload
+	$color_BGreen
+	echo "The TFTP service port was opened in your firewall!!!"
+	$color_Off
+    else
+	$color_BRed
+	echo "The TFTP service port was not been opened in your firewall!!!"
+	$color_Off
+    fi
+fi
+
+
 # Enable and start services
 chkconfig xinetd on
 chkconfig tftp on
@@ -129,8 +150,6 @@ if ! [ -d /var/lib/system-setup-tools ]; then
 fi
 echo "Install date: `date`" > /var/lib/system-setup-tools/tftpd
 
-$color_Purple
-echo "Do not forget to open port 69 udp in your firewall!"
 $color_BGreen
 echo "Setup completed!"
 $color_Off

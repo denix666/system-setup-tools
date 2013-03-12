@@ -1,0 +1,92 @@
+#! /bin/bash
+#
+# Copyright © 2001 - 2012 Denis Salmanovich denis.salmanovich@gmail.com
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+
+[ -f /etc/denix-colors ] && . /etc/denix-colors
+
+# Check if script runs under root
+if ! [ "$(whoami)" = "root" ]; then
+    echo "You have to run me with root user priveleges!"
+    exit 1
+fi
+
+# Check if tftpd daemon installed
+if ! [ -f /var/lib/system-setup-tools/tftpd ]; then
+    echo "The tftp server is not installed on your system!"
+    echo -n "Do you want to install it now? (Y/n)?"; read USERINPUT
+    if [ "${USERINPUT}" = "" -o "${USERINPUT}" = "y" -o "${USERINPUT}" = "Y" ]; then
+	/usr/bin/system-setup-tftpd
+    else
+	echo "Setup cannot continue without tftp server! Exiting."
+	exit 1
+    fi
+fi
+
+# Install required packages
+pk="ltsp-server"
+for i in $pk; do
+	if ! rpm -q $i >/dev/null 2>&1; then
+		required_packages="$required_packages $i"
+	fi
+done
+
+if ! [ "$required_packages" = "" ]; then
+    $color_Purple
+    echo "Some packages not found on your system. Trying to download and install..."
+    if ! yum -y install $required_packages; then
+        $color_BRed
+        echo "Download failed! Check internet connection and try again!"
+        $color_Off
+        exit 1
+    else
+        $color_Green
+        echo "Installation success!"
+        $color_Off
+    fi
+fi
+
+# Add tftp boot menu entry for terminal client
+if [ "$(cat /var/lib/tftpboot/pxelinux.cfg/default | grep ^'ltsp.menu')" = "" ]; then
+    cat >> /var/lib/tftpboot/pxelinux.cfg/default << EOF
+include menu-labels/ltsp.menu
+EOF
+fi
+
+# Check if menu entries dir exists
+if ! [ -e /var/lib/tftpboot/menu-labels ]; then
+    install -m 755 -d /var/lib/tftpboot/menu-labels
+fi
+
+# Add boot menu entry configuration file
+cat > /var/lib/tftpboot/menu-labels/ltsp.menu << EOF
+label ltsp
+    menu label Start linux terminal client
+    kernel ltsp/i386/vmlinuz.ltsp
+    append rw initrd=ltsp/i386/initrd.ltsp quiet selinux=0 rhgb root=dhcp
+EOF
+
+# Add nfs root entry to exports
+if [ "$(cat /etc/exports | grep ^/opt/ltsp)" = "" ]; then
+    echo "/opt/ltsp *(ro,async,no_root_squash)" >> /etc/exports
+fi
+
+# Create installation signature
+if ! [ -d /var/lib/system-setup-tools ]; then
+	install -d /var/lib/system-setup-tools
+fi
+echo "Install date: `date`" > /var/lib/system-setup-tools/ltsp
+
+$color_BGreen
+echo "Setup completed!"
+$color_Off
