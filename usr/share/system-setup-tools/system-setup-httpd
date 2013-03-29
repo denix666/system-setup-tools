@@ -81,16 +81,18 @@ cat > /etc/hosts << EOF
 ::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
 EOF
 
-# Make public_html directories for existing users
-for i in `ls -d /home/*`; do
-    if [ -f $i/.bashrc ]; then
-		CUSER=`echo $i | cut -d/ -f3`
-		echo -n "Creating public_html directory for user: $CUSER... "
-		install -m 710 -d $i/.public_html
-		chown $CUSER:$CUSER $i/.public_html
-		echo "done."
-    fi
-done
+# Make public_html directories for existing users (if exists)
+if [ "$(ls -A /home)" ]; then
+    for i in `ls -d /home/*`; do
+	if [ -f $i/.bashrc ]; then
+	    CUSER=`echo $i | cut -d/ -f3`
+	    echo -n "Creating public_html directory for user: $CUSER... "
+	    install -m 710 -d $i/.public_html
+	    chown $CUSER:$CUSER $i/.public_html
+	    echo "done."
+	fi
+    done
+fi
 
 # Enable UserDir mode
 sed -i 's/^.*UserDir disabled$/#UserDir disabled/g' /etc/httpd/conf/httpd.conf

@@ -21,6 +21,16 @@ if ! [ "$(whoami)" = "root" ]; then
     exit 1
 fi
 
+# Check system version
+[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
+if ! [ $system_ver = "11" -o $system_ver = "12" ]; then
+    $color_Red
+    echo "Not supported platform!"
+    echo "Exiting..."
+    $color_Off
+    exit 1
+fi
+
 # Check if tftpd daemon installed
 if ! [ -f /var/lib/system-setup-tools/tftpd ]; then
     echo "The tftp server is not installed on your system!"

@@ -1,6 +1,6 @@
 Name:		system-setup-tools
 Version:	18.8
-Release:	10%{?dist}
+Release:	12%{?dist}
 Summary:	Setup scripts by -=DeN=-
 Group:		Scripts
 License:	GPL
@@ -53,6 +53,11 @@ rm -rf %{_builddir}/%{name}
 %attr(0755,root,root) /usr/bin/system-setup-httpd
 %attr(0644,root,root) /etc/pam.d/system-setup-httpd
 %attr(0644,root,root) /etc/security/console.apps/system-setup-httpd
+
+%attr(0755,root,root) /usr/share/system-setup-tools/system-setup-jabber
+%attr(0755,root,root) /usr/bin/system-setup-jabber
+%attr(0644,root,root) /etc/pam.d/system-setup-jabber
+%attr(0644,root,root) /etc/security/console.apps/system-setup-jabber
 
 %attr(0755,root,root) /usr/share/system-setup-tools/system-setup-java
 %attr(0755,root,root) /usr/bin/system-setup-java
