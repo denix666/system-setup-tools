@@ -31,6 +31,9 @@ if ! [ $system_ver = "18" -o $system_ver = "19" ]; then
     exit 1
 fi
 
+# Stop the services for installation
+systemctl stop ejabberd >/dev/null 2>&1
+
 # Install required packages
 pk="ejabberd"
 for i in $pk; do
@@ -54,16 +57,30 @@ if ! [ "$required_packages" = "" ]; then
     fi
 fi
 
+# Discovery system configuration
+DOMAINNAME=`hostname`
+
+# Check, if /etc/hosts file already exists, then backup it
+if [ -f /etc/hosts ]; then
+    cp /etc/hosts /etc/hosts.back.`date +%Y%m%d%H%M`
+fi
+
+# Create new hosts file
+cat > /etc/hosts << EOF
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4 ${DOMAINNAME}
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+EOF
+
 # Check, if ejabberd configuration file already exists, then backup it
 if [ -f /etc/ejabberd/ejabberd.cfg ]; then
     cp /etc/ejabberd/ejabberd.cfg /etc/ejabberd/ejabberd.cfg.back.`date +%Y%m%d%H%M`
 fi
 
 # Create configuration file
-cat /etc/ejabberd/ejabberd.cfg << EOF
+cat > /etc/ejabberd/ejabberd.cfg << EOF
 override_acls.
 {loglevel, 4}.
-{hosts, ["$(hostname)"]}.
+{hosts, ["${DOMAINNAME}"]}.
 {route_subdomains, s2s}.
 {listen,
  [
@@ -162,7 +179,8 @@ if [ -f /etc/ejabberd/ejabberd.pem ]; then
 fi
 
 # Generate certificate
-openssl req -new -x509 -nodes -newkey rsa:1024 -days 3650 -keyout /tmp/privkey.pem -out /tmp/cert.pem -subj "/C=XX/ST=XX/L=XX/O=XX/OU=XX/CN=$(hostname)/emailAddress="admin@$(hostname)
+echo "Generating SSL certificate..."
+openssl req -new -x509 -nodes -newkey rsa:1024 -days 3650 -keyout /tmp/privkey.pem -out /tmp/cert.pem -subj "/C=XX/ST=XX/L=XX/O=XX/OU=XX/CN=${DOMAINNAME}/emailAddress="admin@${DOMAINNAME}
 cat /tmp/privkey.pem > /etc/ejabberd/ejabberd.pem
 cat /tmp/cert.pem >> /etc/ejabberd/ejabberd.pem
 rm -rf /tmp/{privkey.pem,cert.pem}
@@ -202,6 +220,11 @@ if ! [ -d /var/lib/system-setup-tools ]; then
 fi
 echo "Install date: `date`" > /var/lib/system-setup-tools/jabber
 
+$color_Purple
+echo "Now you can add users to your server."
+echo
+echo "To add new user: <ejabberdctl register USERNAME ${DOMAINNAME} PASSWORD>"
+echo
 $color_BGreen
 echo "Setup completed!"
 $color_Off
