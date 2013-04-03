@@ -36,7 +36,7 @@ systemctl stop postfix.service >/dev/null 2>&1
 systemctl stop saslauthd.service >/dev/null 2>&1
 
 # Install required packages
-pk="postfix cyrus-sasl firewalld"
+pk="postfix cyrus-sasl firewalld cyrus-sasl-plain"
 for i in $pk; do
     if ! rpm -q $i >/dev/null 2>&1; then
 	required_packages="$required_packages $i"
