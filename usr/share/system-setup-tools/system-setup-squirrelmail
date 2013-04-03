@@ -69,9 +69,16 @@ Alias /webmail /usr/share/squirrelmail
 
 <VirtualHost *:80>
     DocumentRoot /usr/share/squirrelmail
+    ServerPath /squirrelmail
     ServerName mail.${DOMAINNAME}
     ServerAlias mail.${DOMAINNAME}
 </VirtualHost>
+
+<Directory /usr/share/squirrelmail>
+    Options Indexes FollowSymLinks Multiviews
+    AllowOverride All
+    Require all granted
+</Directory>
 EOF
 
 # Restart httpd server

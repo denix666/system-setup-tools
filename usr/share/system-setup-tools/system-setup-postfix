@@ -58,9 +58,24 @@ if ! [ "$required_packages" = "" ]; then
     fi
 fi
 
-
 # Discovery system configuration
-DOMAINNAME=`hostname`
+HOSTNAME=`hostname`
+
+# Ask for hostname
+while [ "${DOMAINNAME}" = "" ]; do
+    $color_Cyan
+    echo -n "Enter your hostname [${HOSTNAME}]: "; read DOMAINNAME
+    $color_Off
+    if [ "${DOMAINNAME}" = "" ]; then
+	DOMAINNAME="${HOSTNAME}"
+    fi
+    if ! ping ${DOMAINNAME} -c1 >/dev/null 2>&1; then
+	$color_Red
+	echo "Error while resolving host ${DOMAINNAME}!. Please choose another one, or fix DNS configuration settings!"
+	$color_Off
+	DOMAINNAME=""
+    fi
+done
 
 # Check, if main.cf file already exists, then backup it
 if [ -f /etc/postfix/main.cf ]; then

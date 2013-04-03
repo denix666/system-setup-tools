@@ -1,6 +1,6 @@
 Name:		system-setup-tools
 Version:	18.8
-Release:	12%{?dist}
+Release:	13%{?dist}
 Summary:	Setup scripts by -=DeN=-
 Group:		Scripts
 License:	GPL
