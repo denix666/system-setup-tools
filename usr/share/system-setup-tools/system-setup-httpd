@@ -115,6 +115,24 @@ cat > /etc/httpd/conf.d/userdir.conf << EOF
 </Directory>
 EOF
 
+# Add apache optimization config for arm platfoms
+sys_arch=$(uname -m)
+if [ "${sys_arch:0:3}" = "arm" ]; then
+    cat > /etc/httpd/conf.d/arm_optimization.conf << EOF
+HostnameLookups      Off
+TimeOut              150
+KeepAlive            On
+MaxKeepAliveRequests 50
+KeepAliveTimeout     10
+StartServers         2
+MinSpareServers      2
+MaxSpareServers      5
+ServerLimit          128
+MaxClients           128
+MaxRequestsPerChild  500
+EOF
+fi
+
 # Create noindex content
 cat > /usr/share/httpd/noindex/index.html << EOF
 <br>
