@@ -33,7 +33,7 @@ fi
 
 case $(uname -i) in
     i386)
-	jre_link="http://download.oracle.com/otn-pub/java/jdk/7u11-b21/jre-7u11-linux-i586.rpm"
+	jre_link="http://download.oracle.com/otn-pub/java/jdk/7u21-b11/jre-7u21-linux-i586.rpm"
 	alt_plugin_inst_cmd="alternatives --install /usr/lib/mozilla/plugins/libjavaplugin.so libjavaplugin.so /usr/java/default/lib/i386/libnpjp2.so 20000"
 	alt_plugin_name="/usr/java/default/lib/i386/libnpjp2.so"
 	alt_plugin_config_cmd="alternatives --config libjavaplugin.so"
@@ -42,7 +42,7 @@ case $(uname -i) in
 	alt_java_config_cmd="alternatives --config java"
 	;;
     x86_64)
-	jre_link="http://download.oracle.com/otn-pub/java/jdk/7u11-b21/jre-7u11-linux-x64.rpm"
+	jre_link="http://download.oracle.com/otn-pub/java/jdk/7u21-b11/jre-7u21-linux-x64.rpm"
 	alt_plugin_inst_cmd="alternatives --install /usr/lib64/mozilla/plugins/libjavaplugin.so libjavaplugin.so.x86_64 /usr/java/default/lib/amd64/libnpjp2.so 20000"
 	alt_plugin_name="/usr/java/default/lib/amd64/libnpjp2.so"
 	alt_plugin_config_cmd="alternatives --config libjavaplugin.so.x86_64"

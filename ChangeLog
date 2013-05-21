@@ -1,3 +1,4 @@
+21.05.2013 - New version of JAVA
 09.04.2013 - Renewed named.ca root servers list
 29.03.2013 - Added script to install jabber server
 12.03.2013 - Added script to build linux terminal server (experemental)
@@ -7,21 +8,3 @@
 23.01.2013 - Fixed system-setup-autologin script
 18.01.2013 - Revisioned all scripts for version F18
 03.01.2013 - Added script to install broadcom firmware.
-20.11.2012 - Added squirrelmail wizard
-20.11.2012 - Added dovecot installation script
-19.11.2012 - Fixed rndc.key permissions
-11.11.2012 - Fixed missing rndc key
-31.08.2012 - Updated link to latest JAVA package
-03.08.2012 - Added system-setup-openvpn script
-17.07.2012 - Added system-setup-kvm script
-16.07.2012 - Completed and tested system-setup-autologin
-13.07.2012 - Begin of work on system-setup-autologin
-05.07.2012 - Added system-setup-java script (JRE installation script)
-18.06.2012 - Added support for Fedora 17
-10.05.2012 - Fixed system-setup-pptpd - the VPN server configuration script
-02.05.2012 - Fixed system-setup-virtualhost script
-27.04.2012 - Added script to build RPM package
-25.04.2012 - Fixed proftpd configuration (issue with pam_env.conf error)
-15.04.2012 - Added system-setup-pptpd - the VPN server wizard.
-27.03.2012 - Updated information about root name servers in system-setup-named.
-22.03.2012 - Added package php-mbstring to install list. Fixed system-setup-virtualhost.
