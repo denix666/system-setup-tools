@@ -1,3 +1,0 @@
-USER=root
-PROGRAM=/usr/share/system-setup-tools/system-setup-ltsp
-SESSION=true

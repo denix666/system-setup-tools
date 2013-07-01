@@ -1,6 +1,6 @@
 Name:		system-setup-tools
-Version:	18.8
-Release:	21%{?dist}
+Version:	19.0
+Release:	1%{?dist}
 Summary:	Setup scripts by -=DeN=-
 Group:		Scripts
 License:	GPL
@@ -63,11 +63,6 @@ rm -rf %{_builddir}/%{name}
 %attr(0755,root,root) /usr/bin/system-setup-java
 %attr(0644,root,root) /etc/pam.d/system-setup-java
 %attr(0644,root,root) /etc/security/console.apps/system-setup-java
-
-%attr(0755,root,root) /usr/share/system-setup-tools/system-setup-ltsp
-%attr(0755,root,root) /usr/bin/system-setup-ltsp
-%attr(0644,root,root) /etc/pam.d/system-setup-ltsp
-%attr(0644,root,root) /etc/security/console.apps/system-setup-ltsp
 
 %attr(0755,root,root) /usr/share/system-setup-tools/system-setup-mysql
 %attr(0755,root,root) /usr/bin/system-setup-mysql
