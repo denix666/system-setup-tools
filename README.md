@@ -15,6 +15,7 @@ system-setup-tools - is a set of the scripts to easy setup, installation and con
 - `system-setup-openvpn` (Setup OpenVPN server)
 - `system-setup-pptpd` (Setup PPTP server)
 - `system-setup-proftpd` (Setup FTP server)
+- `system-setup-runlevel` (Setup default system runlevel)
 - `system-setup-samba` (Setup samba server)
 - `system-setup-squirellmail` (Install squirellmail web interface)
 - `system-setup-tftpd` (Setup TFTP boot server)

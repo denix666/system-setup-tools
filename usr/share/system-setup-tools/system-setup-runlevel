@@ -1,0 +1,77 @@
+#! /bin/bash
+#
+# Copyright © 2001 - 2012 Denis Salmanovich denis.salmanovich@gmail.com
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+
+[ -f /etc/denix-colors ] && . /etc/denix-colors
+
+# Check system version
+[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
+if ! [ $system_ver = "18" -o $system_ver = "19" ]; then
+    $color_Red
+    echo "Not supported platform!"
+    echo "Exiting..."
+    $color_Off
+    exit 1
+fi
+
+# Check if script runs under root
+if ! [ "$(whoami)" = "root" ]; then
+    echo "You have to run me with root user priveleges!"
+    exit 1
+fi
+
+# Ask for wanted runlevel
+while [ "${RUNLEVEL}" = "" ]; do
+    $color_Cyan
+    echo
+    echo "Select your preffered runlevel:"
+    echo "-----------------------------------"
+    echo "1) Graphical interface (runlevel 5)"
+    echo "2) Multiuser interface (runlevel 3)"
+    echo
+    read RUNLEVEL
+    echo
+    $color_Off
+    if [ "${RUNLEVEL}" = "1" -o "${RUNLEVEL}" = "2" ]; then
+	rm /etc/systemd/system/default.target
+	$color_BWhite
+	case ${RUNLEVEL} in
+	    1)
+		echo "Setting graphical user interface as default..."
+		ln -sf /lib/systemd/system/graphical.target /etc/systemd/system/default.target
+		RL=5
+		;;
+	    2)
+		echo "Setting multiuser interface as default..."
+		ln -sf /lib/systemd/system/multi-user.target /etc/systemd/system/default.target
+		RL=3
+		;;
+	esac
+	$color_Off
+    else
+	$color_Red
+	echo "Please select runlevel!"
+	$color_Off
+	RUNLEVEL=""
+    fi
+done
+
+$color_Purple
+echo
+echo "You can switch to selected runlevel by typing: <init ${RL}>"
+echo "After reboot, you will be booted to runlevel ${RL} !"
+echo
+$color_BGreen
+echo "Setup completed!"
+$color_Off
