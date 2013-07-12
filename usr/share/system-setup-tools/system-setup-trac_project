@@ -84,6 +84,9 @@ cat >> /srv/trac/${PROJECT_NAME}/conf/trac.ini << EOF
 [components]
 tracext.git.* = enabled
 tractoc.* = enabled
+
+[git]
+git_bin = /usr/bin/git
 EOF
 sed -i 's/^repository_type =.*$/repository_type = git/g' /srv/trac/${PROJECT_NAME}/conf/trac.ini
 sed -i 's/^repository_dir =.*$/repository_dir = \/srv\/git\/'${PROJECT_NAME}'\/.git/g' /srv/trac/${PROJECT_NAME}/conf/trac.ini
