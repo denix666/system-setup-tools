@@ -115,6 +115,12 @@ cat > /etc/httpd/conf.d/userdir.conf << EOF
 </Directory>
 EOF
 
+# Add DeniX related configuration
+cat > /etc/httpd/conf.d/denix.conf << EOF
+ServerSignature Off
+ServerTokens Prod
+EOF
+
 # Add apache optimization config for arm platfoms
 sys_arch=$(uname -m)
 if [ "${sys_arch:0:3}" = "arm" ]; then
