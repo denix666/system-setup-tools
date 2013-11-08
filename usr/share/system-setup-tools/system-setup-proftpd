@@ -17,7 +17,7 @@
 
 # Check system version
 [ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
-if ! [ $system_ver = "18" -o $system_ver = "19" ]; then
+if ! [ $system_ver = "18" -o $system_ver = "19" -o $system_ver = "20" ]; then
     $color_Red
     echo "Not supported platform!"
     echo "Exiting..."
@@ -61,6 +61,16 @@ fi
 
 # Discovery system configuration
 DOMAINNAME=`hostname`
+
+# Check, if /etc/hosts file already exists, then backup it
+if [ -f /etc/hosts ]; then
+    cp /etc/hosts /etc/hosts.back.`date +%Y%m%d%H%M`
+fi
+
+# Create new hosts file
+cat > /etc/hosts << EOF
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4 ${DOMAINNAME}
+EOF
 
 # Check, if configuration file already exists, then backup it
 if [ -f /etc/proftpd.conf ]; then

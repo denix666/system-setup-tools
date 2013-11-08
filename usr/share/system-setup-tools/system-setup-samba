@@ -17,7 +17,7 @@
 
 # Check system version
 [ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
-if ! [ $system_ver = "18" -o $system_ver = "19" ]; then
+if ! [ $system_ver = "18" -o $system_ver = "19" -o $system_ver = "20" ]; then
     $color_Red
     echo "Not supported platform!"
     echo "Exiting..."
@@ -101,9 +101,7 @@ if [ -f /etc/samba/smb.conf ]; then
 fi
 
 # Create directoriess of netlogon and public access
-install -m 770 -d /home/samba_shares/public
-chown -R root:users /home/samba_shares
-chmod -R 770 /home/samba_shares
+install -m 777 -d /srv/samba/shares/public
 
 # Create new samba configuration file
 cat > /etc/samba/smb.conf << EOF
@@ -131,13 +129,12 @@ cat > /etc/samba/smb.conf << EOF
 
 [public]
     comment                     = Public Directory
-    path                        = /home/samba_shares/public
-    valid users                 = @users
-    force group                 = users
-    create mask                 = 0660
-    directory mask              = 0770
+    path                        = /srv/samba/shares/public
+    create mask                 = 0777
+    directory mask              = 0777
     read only                   = no
     browseable                  = yes
+    writable                    = yes
 EOF
 
 
@@ -173,13 +170,6 @@ if ! [ -d /var/lib/system-setup-tools ]; then
 fi
 echo "Install date: `date`" > /var/lib/system-setup-tools/samba
 
-$color_BWhite
-echo
-echo "To add new users:"
-echo
-echo "useradd den -m -G users"
-echo "smbpasswd -a den"
-echo
 $color_BGreen
 echo
 echo "Setup completed!"
