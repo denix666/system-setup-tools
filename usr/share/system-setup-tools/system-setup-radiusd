@@ -1,0 +1,94 @@
+#! /bin/bash
+#
+# Copyright © 2001 - 2012 Denis Salmanovich denis.salmanovich@gmail.com
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+
+[ -f /etc/denix-colors ] && . /etc/denix-colors
+
+# Check system version
+[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
+if ! [ $system_ver = "18" -o $system_ver = "19" -o $system_ver = "20" ]; then
+    $color_Red
+    echo "Not supported platform!"
+    echo "Exiting..."
+    $color_Off
+    exit 1
+fi
+
+# Check if script runs under root
+if ! [ "$(whoami)" = "root" ]; then
+    echo "You have to run me with root user priveleges!"
+    exit 1
+fi
+
+# Install freeradius packages
+pk="freeradius-utils freeradius"
+for i in $pk; do
+    if ! rpm -q $i >/dev/null 2>&1; then
+	required_packages="$required_packages $i"
+    fi
+done
+
+if ! [ "$required_packages" = "" ]; then
+    $color_Purple
+    echo "Some packages not found on your system. Trying to download and install..."
+    if ! yum -y install $required_packages; then
+        $color_BRed
+        echo "Download failed! Check internet connection and try again!"
+        $color_Off
+        exit 1
+    else
+        $color_Green
+        echo "Installation success!"
+        $color_Off
+    fi
+fi
+
+# Stop the services for installation
+systemctl stop radiusd >/dev/null 2>&1
+
+# Check filewall ports
+if ! firewall-cmd --permanent --query-service=radius; then
+    $color_Red
+    echo "The RADIUS service ports (1812/udp, 1813/udp) are closed in your firewall!"
+    $color_Cyan
+    echo -n "Do you want to open it now? (Y/n)?"; read USERINPUT
+    $color_Off
+    if [ "${USERINPUT}" = "" -o "${USERINPUT}" = "y" -o "${USERINPUT}" = "Y" ]; then
+	firewall-cmd --permanent --add-service=radius
+	firewall-cmd --reload
+	$color_BGreen
+	echo "The RADIUS service ports (1812/udp, 1813/upd) where opened in your firewall!!!"
+	$color_Off
+    else
+	$color_BRed
+	echo "The RADIUS service ports (1812/udp, 1813/udp) where not been opened in your firewall!!!"
+	$color_Off
+    fi
+fi
+
+# Enable daemon
+systemctl enable radiusd >/dev/null 2>&1
+
+# Start service
+systemctl start radiusd >/dev/null 2>&1
+
+# Create installation signature
+if ! [ -d /var/lib/system-setup-tools ]; then
+    install -d /var/lib/system-setup-tools
+fi
+echo "Install date: `date`" > /var/lib/system-setup-tools/radiusd
+
+$color_BGreen
+echo "Setup completed!"
+$color_Off

@@ -1,6 +1,6 @@
 Name:		system-setup-tools
 Version:	20.0
-Release:	3%{?dist}
+Release:	4%{?dist}
 Summary:	Setup scripts by -=DeN=-
 Group:		Scripts
 License:	GPL
@@ -93,6 +93,11 @@ rm -rf %{_builddir}/%{name}
 %attr(0755,root,root) /usr/bin/system-setup-proftpd
 %attr(0644,root,root) /etc/pam.d/system-setup-proftpd
 %attr(0644,root,root) /etc/security/console.apps/system-setup-proftpd
+
+%attr(0755,root,root) /usr/share/system-setup-tools/system-setup-radiusd
+%attr(0755,root,root) /usr/bin/system-setup-radiusd
+%attr(0644,root,root) /etc/pam.d/system-setup-radiusd
+%attr(0644,root,root) /etc/security/console.apps/system-setup-radiusd
 
 %attr(0755,root,root) /usr/share/system-setup-tools/system-setup-runlevel
 %attr(0755,root,root) /usr/bin/system-setup-runlevel
