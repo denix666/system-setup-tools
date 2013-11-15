@@ -1,0 +1,103 @@
+#! /bin/bash
+#
+# Copyright © 2001 - 2012 Denis Salmanovich denis.salmanovich@gmail.com
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+
+[ -f /etc/denix-colors ] && . /etc/denix-colors
+
+# Check if script runs under root
+if ! [ "$(whoami)" = "root" ]; then
+    echo "You have to run me with root user priveleges!"
+    exit 1
+fi
+
+# Check system arch
+sys_arch=`arch`
+if ! [ "${sys_arch}" = "x86_64" ]; then
+    $color_BRed
+    echo "You can install ZFS support only on x86_64 architecture!"
+    echo "Unsupported system. Exiting..."
+    $color_Off
+    exit 1
+fi
+
+# Check the system version
+[ -f /etc/fedora-release ] && system_version=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
+case ${system_version} in
+    18|19)
+    zfs_repo_link="http://archive.zfsonlinux.org/fedora/zfs-release-1-2$(rpm -E %dist).noarch.rpm"
+    ;;
+
+    *)
+    echo "Unsupported system. Exiting..."
+    exit 1
+    ;;
+esac
+
+# Install required plugin
+pk="yum-plugin-priorities"
+for i in $pk; do
+	if ! rpm -q $i >/dev/null 2>&1; then
+		required_packages="$required_packages $i"
+	fi
+done
+
+if ! [ "$required_packages" = "" ]; then
+	echo "Some packages not found on your system. Trying to download and install..."
+	if ! yum -y install $required_packages; then
+		echo "Download failed! Check internet connection and try again!"
+		exit 1
+	else
+		echo "Installation success!"
+	fi
+fi
+
+# Install repository
+if ! rpm -q "zfs-release" >/dev/null 2>&1; then
+	echo "ZFS repository not installed!"
+	echo "Trying to download and add it to the system..."
+	if rpm -Uvh ${zfs_repo_link} >/dev/null 2>&1; then
+	    echo "zfs repo added to the system."
+	else
+	    echo "Download failed! Check internet connection and try again!"
+	    exit 1
+	fi
+fi
+
+# Install required packages
+pk="zfs"
+for i in $pk; do
+	if ! rpm -q $i >/dev/null 2>&1; then
+		required_packages="$required_packages $i"
+	fi
+done
+
+if ! [ "$required_packages" = "" ]; then
+	echo "Some packages not found on your system. Trying to download and install..."
+	if ! yum -y install $required_packages; then
+		echo "Download failed! Check internet connection and try again!"
+		exit 1
+	else
+		echo "Installation success!"
+	fi
+fi
+
+# Create installation signature
+if ! [ -d /var/lib/system-setup-tools ]; then
+	install -d /var/lib/system-setup-tools
+fi
+echo "Install date: `date`" > /var/lib/system-setup-tools/zfs
+
+# Print info
+echo "Setup completed!"
+$color_Off

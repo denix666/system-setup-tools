@@ -1,6 +1,6 @@
 Name:		system-setup-tools
 Version:	20.0
-Release:	4%{?dist}
+Release:	6%{?dist}
 Summary:	Setup scripts by -=DeN=-
 Group:		Scripts
 License:	GPL
@@ -133,3 +133,8 @@ rm -rf %{_builddir}/%{name}
 %attr(0755,root,root) /usr/bin/system-setup-virtualhost
 %attr(0644,root,root) /etc/pam.d/system-setup-virtualhost
 %attr(0644,root,root) /etc/security/console.apps/system-setup-virtualhost
+
+%attr(0755,root,root) /usr/share/system-setup-tools/system-setup-zfs
+%attr(0755,root,root) /usr/bin/system-setup-zfs
+%attr(0644,root,root) /etc/pam.d/system-setup-zfs
+%attr(0644,root,root) /etc/security/console.apps/system-setup-zfs

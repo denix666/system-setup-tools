@@ -21,3 +21,4 @@ system-setup-tools - is a set of the scripts to easy setup, installation and con
 - `system-setup-squirellmail` (Install squirellmail web interface)
 - `system-setup-tftpd` (Setup TFTP boot server)
 - `system-setup-virtualhost` (Add virtual host to apachee configuration)
+- `system-setup-zfs` (Add ZFS file system support)
