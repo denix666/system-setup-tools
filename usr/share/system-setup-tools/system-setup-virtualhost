@@ -58,6 +58,28 @@ fi
 
 # Ask for network device
 while [ "${IFACE}" = "" ]; do
+    IF_LIST=`ifconfig -a | sed 's/[: \t].*//;/^\(lo\|\)$/d'`
+    if [[ -z "${IF_LIST}" ]]; then
+	$color_BRed
+	echo "No network adapters found."
+	echo "Exiting..."
+	$color_Off
+	exit 1
+    fi
+    $color_Yellow
+    echo
+    echo "Found network adapters:"
+    echo "~~~~~~~~~~~~~~~~~~~~~~~"
+    for i in $IF_LIST; do
+	if ! ip addr show ${i} | grep "inet " >/dev/null 2>&1; then
+    	    IPADDR="<no address>"
+	else
+    	    IPADDR=`ifconfig ${i} | head -2 | tail -1 | awk '{print $2}' | cut -d":" -f2`
+	fi
+	echo "$i - $IPADDR"
+    done
+    $color_Off
+    echo
     FOUND_IFACE=`ifconfig -a | sed 's/[: \t].*//;/^\(lo\|\)$/d' | head -1`
     $color_Cyan
     echo -n "What is your primary network interface [${FOUND_IFACE}]?"; read IFACE
