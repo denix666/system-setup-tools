@@ -1,6 +1,6 @@
 Name:		system-setup-tools
-Version:	20.0
-Release:	7%{?dist}
+Version:	21.0
+Release:	1%{?dist}
 Summary:	Setup scripts by -=DeN=-
 Group:		Scripts
 License:	GPL

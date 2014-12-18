@@ -2,8 +2,8 @@
 
 PROJECT_DIR=`dirname $(which $0)`
 SPEC_FILE="${PROJECT_DIR}/$(basename ${PROJECT_DIR}).spec"
-TARGET_OS="fc19 fc20"
-BUILD_SOURCE="yes"
+TARGET_OS="fc21"
+BUILD_SOURCE="no"
 
 # Check if required packages installed
 pk="rpmdevtools rpm-build createrepo"
