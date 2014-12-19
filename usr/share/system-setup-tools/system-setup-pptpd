@@ -24,7 +24,7 @@ fi
 # Check the system version
 [ -f /etc/fedora-release ] && system_version=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
 case ${system_version} in
-    18|19)
+    18|19|20|21)
     poptop_link="http://poptop.sourceforge.net/yum/stable/fc${system_version}/pptp-release-current.noarch.rpm"
     ;;
 

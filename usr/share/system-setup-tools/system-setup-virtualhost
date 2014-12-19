@@ -18,7 +18,7 @@
 
 # Check system version
 [ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
-if ! [ $system_ver = "18" -o $system_ver = "19" -o $system_ver = "20" ]; then
+if ! [ $system_ver = "21" -o $system_ver = "19" -o $system_ver = "20" ]; then
     $color_Red
     echo "Not supported platform!"
     echo "Exiting..."

@@ -31,21 +31,18 @@ if ! [ "${sys_arch}" = "x86_64" ]; then
     exit 1
 fi
 
-# Check the system version
-[ -f /etc/fedora-release ] && system_version=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
-case ${system_version} in
-    18|19)
-    zfs_repo_link="http://archive.zfsonlinux.org/fedora/zfs-release-1-2$(rpm -E %dist).noarch.rpm"
-    ;;
-
-    *)
-    echo "Unsupported system. Exiting..."
+# Check system version
+[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
+if ! [ $system_ver = "19" -o $system_ver = "20" -o $system_ver = "21" ]; then
+    $color_Red
+    echo "Not supported platform!"
+    echo "Exiting..."
+    $color_Off
     exit 1
-    ;;
-esac
+fi
 
-# Install required plugin
-pk="yum-plugin-priorities"
+# Install required package
+pk="zfs-fuse"
 for i in $pk; do
 	if ! rpm -q $i >/dev/null 2>&1; then
 		required_packages="$required_packages $i"
@@ -62,35 +59,11 @@ if ! [ "$required_packages" = "" ]; then
 	fi
 fi
 
-# Install repository
-if ! rpm -q "zfs-release" >/dev/null 2>&1; then
-	echo "ZFS repository not installed!"
-	echo "Trying to download and add it to the system..."
-	if rpm -Uvh ${zfs_repo_link} >/dev/null 2>&1; then
-	    echo "zfs repo added to the system."
-	else
-	    echo "Download failed! Check internet connection and try again!"
-	    exit 1
-	fi
-fi
+# Enable zfs daemon
+systemctl enable zfs-fuse.service >/dev/null 2>&1
 
-# Install required packages
-pk="zfs"
-for i in $pk; do
-	if ! rpm -q $i >/dev/null 2>&1; then
-		required_packages="$required_packages $i"
-	fi
-done
-
-if ! [ "$required_packages" = "" ]; then
-	echo "Some packages not found on your system. Trying to download and install..."
-	if ! yum -y install $required_packages; then
-		echo "Download failed! Check internet connection and try again!"
-		exit 1
-	else
-		echo "Installation success!"
-	fi
-fi
+# Start samba server
+systemctl start zfs-fuse.service >/dev/null 2>&1
 
 # Create installation signature
 if ! [ -d /var/lib/system-setup-tools ]; then

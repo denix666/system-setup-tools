@@ -63,7 +63,7 @@ service xinetd stop >/dev/null 2>&1
 [ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
 
 case ${system_ver} in
-    18|19)
+    18|19|20|21)
 	tftpboot_path="/var/lib/tftpboot"
 	syslinux_path="/usr/share/syslinux"
 	;;

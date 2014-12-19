@@ -21,6 +21,16 @@ if ! [ "$(whoami)" = "root" ]; then
     exit 1
 fi
 
+# Check system version
+[ -f /etc/fedora-release ] && system_ver=`cat /etc/fedora-release | head -1 | awk '{print $3}'`
+if ! [ $system_ver = "21" -o $system_ver = "19" -o $system_ver = "20" ]; then
+    $color_Red
+    echo "Not supported platform!"
+    echo "Exiting..."
+    $color_Off
+    exit 1
+fi
+
 # Ask for wanted runlevel
 while [ "${RUNLEVEL}" = "" ]; do
     $color_Cyan
@@ -39,12 +49,12 @@ while [ "${RUNLEVEL}" = "" ]; do
 	case ${RUNLEVEL} in
 	    1)
 		echo "Setting graphical user interface as default..."
-		ln -sf /lib/systemd/system/graphical.target /etc/systemd/system/default.target
+		systemctl set-default graphical.target
 		RL=5
 		;;
 	    2)
 		echo "Setting multiuser interface as default..."
-		ln -sf /lib/systemd/system/multi-user.target /etc/systemd/system/default.target
+		systemctl set-default multi-user.target
 		RL=3
 		;;
 	esac
